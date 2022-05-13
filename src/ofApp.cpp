@@ -100,7 +100,6 @@ void ofApp::setup(){
 void ofApp::update() {
 	// Update particle system.
 	deathEmitter->update();
-	forwardThrustEmitter->setVelocity(player.);
 	forwardThrustEmitter->update();
 	upwardThrustEmitter->update();
 }
@@ -206,7 +205,8 @@ void ofApp::draw() {
 	}
 
 	// Draw particle emitters.
-	thrustEmitter->draw();
+	forwardThrustEmitter->draw();
+	upwardThrustEmitter->draw();
 	deathEmitter->draw();
 
 	ofPopMatrix();

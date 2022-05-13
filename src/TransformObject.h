@@ -9,9 +9,12 @@
 class TransformObject {
 public:
 	TransformObject();
-	ofVec3f position, rotation, scale;
-	bool	bSelected;
-	void setPosition(const ofVec3f &);
-	void setRotation(const ofVec3f&);
-	void setScale(const ofVec3f&);
+	TransformObject* parent = NULL;
+	glm::vec3 position, rotation, scale;
+	bool bSelected;
+	void setPosition(const glm::vec3 &);
+	void setRotation(const glm::vec3 &);
+	void setYRotation(const float &);
+	void setScale(const glm::vec3 &);
+	glm::mat4 getMatrix();
 };
