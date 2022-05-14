@@ -2,25 +2,29 @@
 #include "MoveState.h"
 #include "Octree.h"
 #include "ParticleEmitter.h"
+#include "Force.h"
+#include "ofxAssimpModelLoader.h"
 
 class Player : public TransformObject {
 public:
-	Player();
+	Player() {}
 	// Drawables
-	string modelSrc;
-	string textureSrc;
+	ofxAssimpModelLoader model;
 	// Values
 	float fuel;
 	float thrust;
 	float torque;
 	float restitution;
 	// Physics Values
+	vector<Force*> forces;
 	glm::vec3 velocity;
 	glm::vec3 acceleration;
 	glm::vec3 force;
 	float angularVelocity;
 	float angularAcceleration;
 	float angularForce;
+	float mass;
+	float damping;
 	// States
 	ms::accelDir aDir = ms::accelDir::NONE;
 	ms::rotateDir rDir = ms::rotateDir::NONE;
@@ -29,7 +33,7 @@ public:
 	bool isCollided;
 	// Toggles
 	bool showHeadingVector;
-	
+
 	// Gets the heading vector of the player, which rotates about player's y-axis.
 	glm::vec3 heading(float len);
 	// Draws a header vector pointing out from player direction.
@@ -39,7 +43,7 @@ public:
 	// Integrates forces on the player; updates linear and angular motion.
 	void integrate();
 	// Applies a force on the player.
-	void addForce();
+	void addForce(Force* f);
 	// Updates all existing forces on the player.
 	void updateForces();
 	// Removes residual horizontal side slipping from velocity of previous rotation.

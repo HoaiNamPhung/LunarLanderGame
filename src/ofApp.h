@@ -6,6 +6,8 @@
 #include "Octree.h"
 #include "ParticleEmitter.h"
 #include <glm/gtx/intersect.hpp>
+#include "Camera.h"
+#include "Player.h"
 
 
 
@@ -34,13 +36,14 @@ class ofApp : public ofBaseApp{
 		void toggleWireframeMode();
 		void togglePointsDisplay();
 		void toggleSelectTerrain();
+		void toggleAltitudeSensor();
 		void setCameraTarget();
 		bool mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point);
 		bool raySelectWithOctree(ofVec3f &pointRet);
 		glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 p , glm::vec3 n);
 
 		ofEasyCam cam;
-		ofxAssimpModelLoader moon, lander;
+		ofxAssimpModelLoader moon;
 		ofLight light;
 		Box boundingBox, landerBounds;
 		Box testBox;
@@ -56,6 +59,7 @@ class ofApp : public ofBaseApp{
 		// Octree
 		ofxIntSlider numLevels;
 		// Player
+		Player player;
 		ofxFloatSlider scale;
 		ofxFloatSlider thrust;
 		ofxFloatSlider torque;
@@ -75,6 +79,7 @@ class ofApp : public ofBaseApp{
 		ParticleEmitter* deathEmitter;
 
 		// States
+		Camera::mode cameraState = Camera::mode::FIXED;
 		bool bAltKeyDown;
 		bool bCtrlKeyDown;
 		bool bWireframe;
