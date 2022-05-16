@@ -16,5 +16,6 @@ public:
 	void setRotation(const glm::vec3 &);
 	void setYRotation(const float &);
 	void setScale(const glm::vec3 &);
+	void setScale(const float &);
 	glm::mat4 getMatrix();
 };

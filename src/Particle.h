@@ -1,17 +1,16 @@
 #pragma once
 
 #include "ofMain.h"
+#include "TransformObject.h"
 
 class ParticleForceField;
 
-class Particle {
+class Particle : public TransformObject {
 public:
 	Particle();
-
-	ofVec3f position;
-	ofVec3f velocity;
-	ofVec3f acceleration;
-	ofVec3f forces;
+	glm::vec3 velocity;
+	glm::vec3 acceleration;
+	glm::vec3 netForce;
 	float	damping;
 	float   mass;
 	float   lifespan;

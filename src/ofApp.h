@@ -9,8 +9,6 @@
 #include "Camera.h"
 #include "Player.h"
 
-
-
 class ofApp : public ofBaseApp{
 
 	public:
@@ -18,6 +16,7 @@ class ofApp : public ofBaseApp{
 		void update();
 		void draw();
 
+		void loadVbo(ParticleEmitter* emitter, ofVbo vbo);
 		void keyPressed(int key);
 		void keyReleased(int key);
 		void mouseMoved(int x, int y );
@@ -59,29 +58,41 @@ class ofApp : public ofBaseApp{
 		// Octree
 		ofxIntSlider numLevels;
 		// Player
-		Player player;
+		Player* player;
+		ParticleSystem* sys;
 		ofxFloatSlider scale;
 		ofxFloatSlider thrust;
+		ofxFloatSlider thrustEmitterVelocityScale = 3;
+		ofxFloatSlider thrustEmitterParticleRadius = 0.3;
 		ofxFloatSlider torque;
 		ofxFloatSlider restitution;
 		ofxIntSlider maxFuel;
+		glm::vec3 playerCenterOffset;
 		// Emitters
 		ofxFloatSlider thrustRate;
 		ofxIntSlider turbScale = 10;
 		ofxFloatSlider deathParticleSize = 0.3f;
 		ofxFloatSlider thrustParticleSize = 0.1f;
-
-		// Emitters
 		TurbulenceForce* turbulenceForce;
 		ImpulseRadialForce* radialForce;
 		ParticleEmitter* upwardThrustEmitter;
 		ParticleEmitter* forwardThrustEmitter;
 		ParticleEmitter* deathEmitter;
+		// SFX
+		ofSoundPlayer bgm;
+		ofSoundPlayer thrustSfx;
+		ofSoundPlayer rotateSfx;
+		ofSoundPlayer deathSfx;
+		ofSoundPlayer bounceSfx;
+		ofSoundPlayer victorySfx;
+		// Shader
+		ofTexture particleTex;
+		ofShader shader;
+		ofVbo vboUpward, vboForward, vboDeath;
 
 		// States
 		Camera::mode cameraState = Camera::mode::FIXED;
 		bool bAltKeyDown;
-		bool bCtrlKeyDown;
 		bool bWireframe;
 		bool bDisplayPoints;
 		bool bPointSelected;
@@ -92,6 +103,7 @@ class ofApp : public ofBaseApp{
 		bool bDisplayBBoxes = false;
 		bool bLanderLoaded;
 		bool bTerrainSelected;
+		bool bPaused = true;
 
 		// Mouse selection
 		ofVec3f selectedPoint;

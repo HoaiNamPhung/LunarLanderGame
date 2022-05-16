@@ -25,6 +25,10 @@ void TransformObject::setScale(const glm::vec3& sca) {
 	scale = sca;
 }
 
+void TransformObject::setScale(const float& sca) {
+	scale = glm::vec3(sca, sca, sca);
+}
+
 // Retrieves matrix generated from current shape's tranformations.
 glm::mat4 TransformObject::getMatrix() {
 	glm::mat4 trans = glm::translate(glm::mat4(1.0), glm::vec3(position));

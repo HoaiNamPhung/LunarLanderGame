@@ -21,9 +21,19 @@ void ofApp::setup(){
 	bWireframe = false;
 	bDisplayPoints = false;
 	bAltKeyDown = false;
-	bCtrlKeyDown = false;
 	bLanderLoaded = false;
 	bTerrainSelected = true;
+
+	// Preload shader textures
+	if (!ofLoadImage(particleTex, "images/dot.png")) {
+		cout << "Particle Texture File: images/dot.png not found" << endl;
+		ofExit();
+	}
+	#ifdef TARGET_OPENGLES
+		shader.load("shaders_gles/shader");
+	#else
+		shader.load("shaders/shader");
+	#endif
 
 	// Camera
 	cam.setDistance(10);
@@ -45,34 +55,57 @@ void ofApp::setup(){
 	gui.setup();
 	gui.add(numLevels.setup("Number of Octree Levels", 1, 1, 10));
 	gui.add(scale.setup("Player Scale", 1, 1, 10));
-	gui.add(thrust.setup("Player Thrust", 1, 1, 10));
-	gui.add(torque.setup("Player Torque", 1, 1, 10));
+	gui.add(thrust.setup("Player Thrust", 5, 1, 50));
+	gui.add(torque.setup("Player Torque", 50, 1, 300));
 	gui.add(restitution.setup("Player Restitution", 1, 1, 10));
 	gui.add(maxFuel.setup("Max Fuel", 1, 1, 10));
-	gui.add(thrustRate.setup("Thrust Rate", 0.1, 0.05, 1));
+	gui.add(thrustRate.setup("Thrust Rate", 0.05, 0.01, 1));
 	gui.add(turbScale.setup("Turbulence Scale", 10, 0, 100));
 	bHide = false;
+
+	// Player
+	player = new Player();
+	sys = new ParticleSystem();
+	player->position = glm::vec3(0, 0, 0);
+	player->radius = 1.0;
+	player->lifespan = 100000;
+	player->isAlive = true;
+	sys->add(*player);
+	//sys->addForce(new GravityForce(ofVec3f(0, 9.8f, 0)));
+	// Player model
+	player->model.loadModel("geo/lander.obj");
+	bLanderLoaded = true;
+	player->model.setScaleNormalization(false);
+	player->model.setPosition(0, 0, 0);
+	bboxList.clear();
+	for (int i = 0; i < player->model.getMeshCount(); i++) {
+		bboxList.push_back(Octree::meshBounds(player->model.getMesh(i)));
+	}
+	// Get coordinates of center.
+	glm::vec3 min = player->model.getSceneMin();
+	glm::vec3 max = player->model.getSceneMax();
+	landerBounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
 
 	/* Particle Emitters */
 	turbulenceForce = new TurbulenceForce(glm::vec3((int)-turbScale, (int)-turbScale, (int)-turbScale), glm::vec3((int)turbScale, (int)turbScale, (int)turbScale));
 	radialForce = new ImpulseRadialForce(2000);
 	// Thrusters
-	glm::vec3 thrusterPos; //= bottomcenter of player bounding box
+	glm::vec3 thrusterPos = player->position + playerCenterOffset; // center of player bounding box
 	forwardThrustEmitter = new ParticleEmitter();
 	forwardThrustEmitter->setEmitterType(DirectionalEmitter);
 	forwardThrustEmitter->setPosition(thrusterPos);
 	forwardThrustEmitter->setRate(thrustRate);
-	forwardThrustEmitter->setVelocity(glm::vec3(10, 0, 10));
+	forwardThrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, 0, player->velocity.z));
 	forwardThrustEmitter->setLifespan(0.5);
-	forwardThrustEmitter->setParticleRadius(1);
+	forwardThrustEmitter->setParticleRadius(0.4);
 	forwardThrustEmitter->sys->addForce(turbulenceForce);
 	upwardThrustEmitter = new ParticleEmitter();
 	upwardThrustEmitter->setEmitterType(DirectionalEmitter);
 	upwardThrustEmitter->setPosition(thrusterPos);
 	upwardThrustEmitter->setRate(thrustRate);
-	upwardThrustEmitter->setVelocity(glm::vec3(0, 10, 0));
+	upwardThrustEmitter->setVelocity(glm::vec3(0, -9.8f, 0));
 	upwardThrustEmitter->setLifespan(0.5);
-	upwardThrustEmitter->setParticleRadius(1);
+	upwardThrustEmitter->setParticleRadius(0.4);
 	upwardThrustEmitter->sys->addForce(turbulenceForce);
 	// Death
 	deathEmitter = new ParticleEmitter();
@@ -98,19 +131,37 @@ void ofApp::setup(){
 // incrementally update scene (animation)
 //
 void ofApp::update() {
-	// Update particle system.
-	deathEmitter->update();
-	forwardThrustEmitter->update();
-	upwardThrustEmitter->update();
+	// Update slider values.
+	player->setScale(scale);
+	player->thrust = thrust;
+	player->torque = torque;
+	player->restitution = restitution;
+	sys->update();
+	forwardThrustEmitter->setRate(thrustRate);
+	upwardThrustEmitter->setRate(thrustRate);
+
+	// Update physics if game is running.
+	if (!bPaused) {
+		// Player states/movement.
+		player->updateForces();
+		player->integrate();
+		player->removeSideSlipping();
+		// Particle system movement.
+		forwardThrustEmitter->update();
+		upwardThrustEmitter->update();
+		deathEmitter->update();
+		// Adjust position of objects attached to player.
+		player->model.setPosition(player->position.x, player->position.y, player->position.z);
+		player->model.setRotation(0, player->rotation.y, 0, 1, 0);
+		forwardThrustEmitter->setPosition(player->position);
+		upwardThrustEmitter->setPosition(player->position);
+		forwardThrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, 0, player->velocity.z) * (float) thrustEmitterVelocityScale);
+	}
 }
 //--------------------------------------------------------------
 void ofApp::draw() {
 
 	ofBackground(ofColor::black);
-
-	glDepthMask(false);
-	if (!bHide) gui.draw();
-	glDepthMask(true);
 
 	cam.begin();
 	ofPushMatrix();
@@ -119,8 +170,8 @@ void ofApp::draw() {
 		ofSetColor(ofColor::slateGray);
 		moon.drawWireframe();
 		if (bLanderLoaded) {
-			player.model.drawWireframe();
-			if (!bTerrainSelected) drawAxis(player.model.getPosition());
+			player->model.drawWireframe();
+			if (!bTerrainSelected) drawAxis(player->model.getPosition());
 		}
 		if (bTerrainSelected) drawAxis(ofVec3f(0, 0, 0));
 	}
@@ -129,14 +180,14 @@ void ofApp::draw() {
 		moon.drawFaces();
 		ofMesh mesh;
 		if (bLanderLoaded) {
-			player.model.drawFaces();
-			if (!bTerrainSelected) drawAxis(player.model.getPosition());
+			player->model.drawFaces();
+			if (!bTerrainSelected) drawAxis(player->model.getPosition());
 			if (bDisplayBBoxes) {
 				ofNoFill();
 				ofSetColor(ofColor::white);
-				for (int i = 0; i < player.model.getNumMeshes(); i++) {
+				for (int i = 0; i < player->model.getNumMeshes(); i++) {
 					ofPushMatrix();
-					ofMultMatrix(player.model.getModelMatrix());
+					ofMultMatrix(player->model.getModelMatrix());
 					ofRotate(-90, 1, 0, 0);
 					Octree::drawBox(bboxList[i]);
 					ofPopMatrix();
@@ -145,8 +196,8 @@ void ofApp::draw() {
 
 			if (bLanderSelected) {
 
-				ofVec3f min = player.model.getSceneMin() + player.model.getPosition();
-				ofVec3f max = player.model.getSceneMax() + player.model.getPosition();
+				ofVec3f min = player->model.getSceneMin() + player->model.getPosition();
+				ofVec3f max = player->model.getSceneMax() + player->model.getPosition();
 
 				Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
 				ofNoFill();
@@ -162,8 +213,6 @@ void ofApp::draw() {
 		}
 	}
 	if (bTerrainSelected) drawAxis(ofVec3f(0, 0, 0));
-
-
 
 	if (bDisplayPoints) {                // display points as an option    
 		glPointSize(3);
@@ -205,14 +254,59 @@ void ofApp::draw() {
 	}
 
 	// Draw particle emitters.
-	forwardThrustEmitter->draw();
-	upwardThrustEmitter->draw();
-	deathEmitter->draw();
+	if (player->isAlive && !bPaused) {
+		forwardThrustEmitter->draw();
+		upwardThrustEmitter->draw();
+		//deathEmitter->draw();
+		// Shader based emitters.
+		loadVbo(deathEmitter, vboDeath);
+		ofEnableBlendMode(OF_BLENDMODE_ADD);
+		ofEnablePointSprites();
+		shader.begin();
+		particleTex.bind();
+		vboDeath.draw(GL_POINTS, 0, (int)deathEmitter->sys->particles.size());
+		particleTex.unbind();
+		shader.end();
+		ofDisablePointSprites();
+		ofDisableBlendMode();
+		//ofEnableAlphaBlending();
+	}
 
 	ofPopMatrix();
 	cam.end();
+
+	// Draw HUD
+	if (bPaused) {
+		ofDrawBitmapStringHighlight("Paused.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
+	}
+	else {
+		ofDrawBitmapStringHighlight("Running.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
+	}
+
+	// Draw GUI
+	glDepthMask(false);
+	if (!bHide) gui.draw();
+	glDepthMask(true);
 }
 
+// load vertex buffer in preparation for rendering
+//
+void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo vbo) {
+	if (emitter->sys->particles.size() < 1) return;
+
+	vector<ofVec3f> sizes;
+	vector<ofVec3f> points;
+	for (int i = 0; i < emitter->sys->particles.size(); i++) {
+		points.push_back(emitter->sys->particles[i].position);
+		sizes.push_back(ofVec3f(emitter->radius));
+	}
+	// upload the data to the vbo
+	//
+	int total = (int)points.size();
+	vbo.clear();
+	vbo.setVertexData(&points[0], total, GL_STATIC_DRAW);
+	vbo.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
+}
 
 // 
 // Draw an XYZ axis in RGB at world (0,0,0) for reference.
@@ -295,7 +389,7 @@ void ofApp::keyPressed(int key) {
 		bAltKeyDown = true;
 		break;
 	case OF_KEY_CONTROL:
-		bCtrlKeyDown = true;
+		bPaused = !bPaused;
 		break;
 	case OF_KEY_SHIFT:
 		break;
@@ -304,24 +398,33 @@ void ofApp::keyPressed(int key) {
 	case OF_KEY_LEFT:   // turn left
 	case 'a':
 	case 'A':
-		player.rDir = ms::rotateDir::LEFT;
+		player->rDir = ms::rotateDir::LEFT;
 		break;
 	case OF_KEY_RIGHT:  // turn right
 	case 'd':
 	case 'D':
-		player.rDir = ms::rotateDir::RIGHT;
+		player->rDir = ms::rotateDir::RIGHT;
 		break;
 	case OF_KEY_UP:     // go forward
 	case 'w':
 	case 'W':
-		player.aDir = ms::accelDir::FORWARD;
+		if (!player->isAlive || bPaused) break;
+		forwardThrustEmitter->sys->reset();
+		forwardThrustEmitter->start();
+		player->aDir = ms::accelDir::FORWARD;
 		break;
 	case OF_KEY_DOWN:   // go backward
 	case 's':
 	case 'S':
-		player.aDir = ms::accelDir::BACKWARD;
+		forwardThrustEmitter->sys->reset();
+		forwardThrustEmitter->start();
+		player->aDir = ms::accelDir::BACKWARD;
 		break;
 	case ' ':
+		if (!player->isAlive || bPaused) break;
+		upwardThrustEmitter->sys->reset();
+		upwardThrustEmitter->start();
+		player->isThrustingUpward = true;
 		break;
 	default:
 		break;
@@ -348,32 +451,33 @@ void ofApp::keyReleased(int key) {
 		cam.disableMouseInput();
 		bAltKeyDown = false;
 		break;
-	case OF_KEY_CONTROL:
-		bCtrlKeyDown = false;
-		break;
 	case OF_KEY_SHIFT:
 		break;
 	case OF_KEY_LEFT:   // turn left
 	case 'a':
 	case 'A':
-		player.rDir = ms::rotateDir::NONE;
+		player->rDir = ms::rotateDir::NONE;
 		break;
 	case OF_KEY_RIGHT:  // turn right
 	case 'd':
 	case 'D':
-		player.rDir = ms::rotateDir::NONE;
+		player->rDir = ms::rotateDir::NONE;
 		break;
 	case OF_KEY_UP:     // go forward
 	case 'w':
 	case 'W':
-		player.aDir = ms::accelDir::NONE;
+		player->aDir = ms::accelDir::NONE;
+		forwardThrustEmitter->stop();
 		break;
 	case OF_KEY_DOWN:   // go backward
 	case 's':
 	case 'S':
-		player.aDir = ms::accelDir::NONE;
+		player->aDir = ms::accelDir::NONE;
+		forwardThrustEmitter->stop();
 		break;
 	case ' ':
+		player->isThrustingUpward = false;
+		upwardThrustEmitter->stop();
 		break;
 	default:
 		break;
@@ -404,14 +508,14 @@ void ofApp::mousePressed(int x, int y, int button) {
 		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
 		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 
-		ofVec3f min = player.model.getSceneMin() + player.model.getPosition();
-		ofVec3f max = player.model.getSceneMax() + player.model.getPosition();
+		ofVec3f min = player->model.getSceneMin() + player->model.getPosition();
+		ofVec3f max = player->model.getSceneMax() + player->model.getPosition();
 
 		Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
 		bool hit = bounds.intersect(Ray(Vector3(origin.x, origin.y, origin.z), Vector3(mouseDir.x, mouseDir.y, mouseDir.z)), 0, 10000);
 		if (hit) {
 			bLanderSelected = true;
-			mouseDownPos = getMousePointOnPlane(player.model.getPosition(), cam.getZAxis());
+			mouseDownPos = getMousePointOnPlane(player->model.getPosition(), cam.getZAxis());
 			mouseLastPos = mouseDownPos;
 			bInDrag = true;
 		}
@@ -435,7 +539,7 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
 	// Time ray intersection runtime.
 	ofResetElapsedTimeCounter();
 	pointSelected = octree.intersect(ray, octree.root, selectedNode);
-	cout << "Tree ray intersection time: " << ofGetElapsedTimeMillis() << " ms" << endl;
+	//cout << "Tree ray intersection time: " << ofGetElapsedTimeMillis() << " ms" << endl;
 
 	if (pointSelected) {
 		pointRet = octree.mesh.getVertex(selectedNode.points[0]);
@@ -451,7 +555,7 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
 
 // TODO:
 void ofApp::toggleAltitudeSensor() {
-	player.getNearestAltitude(octree);
+	player->getNearestAltitude(octree);
 	return;
 }
 
@@ -464,17 +568,17 @@ void ofApp::mouseDragged(int x, int y, int button) {
 
 	if (bInDrag) {
 
-		glm::vec3 landerPos = player.model.getPosition();
+		glm::vec3 landerPos = player->model.getPosition();
 
 		glm::vec3 mousePos = getMousePointOnPlane(landerPos, cam.getZAxis());
 		glm::vec3 delta = mousePos - mouseLastPos;
 	
 		landerPos += delta;
-		player.model.setPosition(landerPos.x, landerPos.y, landerPos.z);
+		player->model.setPosition(landerPos.x, landerPos.y, landerPos.z);
 		mouseLastPos = mousePos;
 
-		ofVec3f min = player.model.getSceneMin() + player.model.getPosition();
-		ofVec3f max = player.model.getSceneMax() + player.model.getPosition();
+		ofVec3f min = player->model.getSceneMin() + player->model.getPosition();
+		ofVec3f max = player->model.getSceneMax() + player->model.getPosition();
 
 		Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
 
@@ -482,7 +586,7 @@ void ofApp::mouseDragged(int x, int y, int button) {
 		// Time box intersection runtime.
 		ofResetElapsedTimeCounter();
 		octree.intersect(bounds, octree.root, colBoxList);
-		cout << "Tree box intersection time: " << ofGetElapsedTimeMillis() << " ms" << endl;
+		//cout << "Tree box intersection time: " << ofGetElapsedTimeMillis() << " ms" << endl;
 	
 
 		/*if (bounds.overlap(testBox)) {
@@ -599,18 +703,18 @@ void ofApp::dragEvent2(ofDragInfo dragInfo) {
 
 	ofVec3f point;
 	mouseIntersectPlane(ofVec3f(0, 0, 0), cam.getZAxis(), point);
-	if (player.model.loadModel(dragInfo.files[0])) {
-		player.model.setScaleNormalization(false);
-//		player.model.setScale(.1, .1, .1);
-	//	player.model.setPosition(point.x, point.y, point.z);
-		player.model.setPosition(1, 1, 0);
+	if (player->model.loadModel(dragInfo.files[0])) {
+		player->model.setScaleNormalization(false);
+	//	player->model.setScale(.1, .1, .1);
+	//	player->model.setPosition(point.x, point.y, point.z);
+		player->model.setPosition(1, 1, 0);
 
 		bLanderLoaded = true;
-		for (int i = 0; i < player.model.getMeshCount(); i++) {
-			bboxList.push_back(Octree::meshBounds(player.model.getMesh(i)));
+		for (int i = 0; i < player->model.getMeshCount(); i++) {
+			bboxList.push_back(Octree::meshBounds(player->model.getMesh(i)));
 		}
 
-		cout << "Mesh Count: " << player.model.getMeshCount() << endl;
+		cout << "Mesh Count: " << player->model.getMeshCount() << endl;
 	}
 	else cout << "Error: Can't load model" << dragInfo.files[0] << endl;
 }
@@ -629,17 +733,17 @@ bool ofApp::mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &
 // model is dropped in viewport, place origin under cursor
 //
 void ofApp::dragEvent(ofDragInfo dragInfo) {
-	if (player.model.loadModel(dragInfo.files[0])) {
+	if (player->model.loadModel(dragInfo.files[0])) {
 		bLanderLoaded = true;
-		player.model.setScaleNormalization(false);
-		player.model.setPosition(0, 0, 0);
-		cout << "number of meshes: " << player.model.getNumMeshes() << endl;
+		player->model.setScaleNormalization(false);
+		player->model.setPosition(0, 0, 0);
+		cout << "number of meshes: " << player->model.getNumMeshes() << endl;
 		bboxList.clear();
-		for (int i = 0; i < player.model.getMeshCount(); i++) {
-			bboxList.push_back(Octree::meshBounds(player.model.getMesh(i)));
+		for (int i = 0; i < player->model.getMeshCount(); i++) {
+			bboxList.push_back(Octree::meshBounds(player->model.getMesh(i)));
 		}
 
-		//		player.model.setRotation(1, 180, 1, 0, 0);
+		//		player->model.setRotation(1, 180, 1, 0, 0);
 
 				// We want to drag and drop a 3D object in space so that the model appears 
 				// under the mouse pointer where you drop it !
@@ -668,10 +772,10 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 
 			// Now position the lander's origin at that intersection point
 			//
-			glm::vec3 min = player.model.getSceneMin();
-			glm::vec3 max = player.model.getSceneMax();
+			glm::vec3 min = player->model.getSceneMin();
+			glm::vec3 max = player->model.getSceneMax();
 			float offset = (max.y - min.y) / 2.0;
-			player.model.setPosition(intersectPoint.x, intersectPoint.y - offset, intersectPoint.z);
+			player->model.setPosition(intersectPoint.x, intersectPoint.y - offset, intersectPoint.z);
 
 			// set up bounding box for lander while we are at it
 			//

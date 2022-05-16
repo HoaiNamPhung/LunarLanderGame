@@ -1,11 +1,11 @@
-#include "TransformObject.h"
+#include "Particle.h"
 #include "MoveState.h"
 #include "Octree.h"
 #include "ParticleEmitter.h"
 #include "Force.h"
 #include "ofxAssimpModelLoader.h"
 
-class Player : public TransformObject {
+class Player : public Particle {
 public:
 	Player() {}
 	// Drawables
@@ -17,18 +17,14 @@ public:
 	float restitution;
 	// Physics Values
 	vector<Force*> forces;
-	glm::vec3 velocity;
-	glm::vec3 acceleration;
-	glm::vec3 force;
 	float angularVelocity;
 	float angularAcceleration;
 	float angularForce;
-	float mass;
-	float damping;
 	// States
 	ms::accelDir aDir = ms::accelDir::NONE;
 	ms::rotateDir rDir = ms::rotateDir::NONE;
-	bool isAlive;
+	bool isThrustingUpward = false;
+	bool isAlive = false;
 	bool isLanded;
 	bool isCollided;
 	// Toggles
@@ -49,7 +45,7 @@ public:
 	// Removes residual horizontal side slipping from velocity of previous rotation.
 	void removeSideSlipping();
 	// Undraws the player and removes it from the scene. Emits a particle explosion to indicate destruction.
-	void destroy(ParticleEmitter deathEmitter);
+	void destroy(ParticleEmitter* deathEmitter);
 	// Returns the distance between the lander and the closest terrain point directly below it.
 	float getNearestAltitude(Octree oct);
 	// Get the closest terrain point that collides with the lander.

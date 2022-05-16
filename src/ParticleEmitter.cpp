@@ -113,14 +113,14 @@ void ParticleEmitter::spawn(float time) {
 		ofVec3f dir = ofVec3f(ofRandom(-1, 1), ofRandom(-1, 1), ofRandom(-1, 1));
 		float speed = velocity.length();
 		particle.velocity = dir.getNormalized() * speed;
-		particle.position.set(position);
+		particle.position = position;
 		break;
 	}
 	case SphereEmitter:
 		break;
 	case DirectionalEmitter:
 		particle.velocity = velocity;
-		particle.position.set(position);
+		particle.position = position;
 		break;
 	}
 

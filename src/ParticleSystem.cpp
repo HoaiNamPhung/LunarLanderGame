@@ -96,7 +96,7 @@ void GravityForce::updateForce(Particle * particle) {
 	//
 	// f = mg
 	//
-	particle->forces += gravity * particle->mass;
+	particle->netForce += gravity * particle->mass;
 }
 void GravityForce::set(float g) {
 	gravity = ofVec3f(0, -g, 0);
@@ -113,9 +113,9 @@ void TurbulenceForce::updateForce(Particle * particle) {
 	// We are going to add a little "noise" to a particles
 	// forces to achieve a more natual look to the motion
 	//
-	particle->forces.x += ofRandom(tmin.x, tmax.x);
-	particle->forces.y += ofRandom(tmin.y, tmax.y);
-	particle->forces.z += ofRandom(tmin.z, tmax.z);
+	particle->netForce.x += ofRandom(tmin.x, tmax.x);
+	particle->netForce.y += ofRandom(tmin.y, tmax.y);
+	particle->netForce.z += ofRandom(tmin.z, tmax.z);
 }
 void TurbulenceForce::set(const ofVec3f& min, const ofVec3f& max) {
 	tmin = min;
@@ -141,7 +141,7 @@ void ImpulseRadialForce::updateForce(Particle * particle) {
 	// the force is only added once after it is triggered.
 	//
 	ofVec3f dir = ofVec3f(ofRandom(-1, 1), ofRandom(-1, 1) * height, ofRandom(-1, 1));
-	particle->forces += dir.getNormalized() * magnitude;
+	particle->netForce += dir.getNormalized() * magnitude;
 }
 void ImpulseRadialForce::set(float magnitude) {
 	this->magnitude = magnitude;

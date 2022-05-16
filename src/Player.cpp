@@ -2,7 +2,7 @@
 #include "Player.h"
 
 glm::vec3 Player::heading(float len) {
-	glm::vec3 dir = glm::vec3(sin(glm::radians(rotation.y)), 0, -cos(glm::radians(rotation.y)));
+	glm::vec3 dir = glm::vec3(-sin(glm::radians(rotation.y)), 0, -cos(glm::radians(rotation.y)));
 	return len * glm::normalize(dir);
 }
 
@@ -26,7 +26,7 @@ void Player::integrate() {
 	// linear motion
 	position += (velocity * dt);
 	glm::vec3 accel = acceleration;
-	accel += (force * 1.0 / mass);
+	accel += (netForce * 1.0 / mass);
 	velocity += accel * dt;
 	velocity *= damping;
 
@@ -38,7 +38,7 @@ void Player::integrate() {
 	angularVelocity *= damping;
 
 	// Zero out forces.
-	force = glm::vec3(0, 0, 0);
+	netForce = glm::vec3(0, 0, 0);
 }
 
 void Player::addForce(Force* f) {
@@ -50,16 +50,21 @@ void Player::updateForces() {
 	if (aDir != ms::accelDir::NONE) {
 		glm::vec3 dirVector = heading(1.0f);
 		if (aDir == ms::accelDir::BACKWARD) {
-			dirVector.x *= -1;
-			dirVector.y *= -1;
+			dirVector *= -1;
 		}
+		ImpulseForce* f = new ImpulseForce(thrust, dirVector);
+		addForce(f);
+	}
+	// Apply upward force if applicable.
+	if (isThrustingUpward) {
+		glm::vec3 dirVector = glm::vec3(0, 1, 0);
 		ImpulseForce* f = new ImpulseForce(thrust, dirVector);
 		addForce(f);
 	}
 	// Apply rotational force based on player rotation direction.
 	if (rDir != ms::rotateDir::NONE) {
 		angularForce = torque;
-		if (rDir == ms::rotateDir::LEFT) {
+		if (rDir == ms::rotateDir::RIGHT) {
 			angularForce *= -1;
 		}
 	}
@@ -71,7 +76,7 @@ void Player::updateForces() {
 	// Update forces on ship.
 	for (int k = 0; k < forces.size(); k++) {
 		if (!forces[k]->applied)
-			forces[k]->updateForce(&force);
+			forces[k]->updateForce(&netForce);
 	}
 	// Turn off impulse forces so that they aren't reapplied.
 	for (int i = 0; i < forces.size(); i++) {
@@ -95,13 +100,17 @@ void Player::removeSideSlipping() {
 	velocity = forwardVector;
 }
 
-// TODO:
-//
-
-void Player::destroy(ParticleEmitter deathEmitter) {
+void Player::destroy(ParticleEmitter* deathEmitter) {
+	deathEmitter->setPosition(position);
+	deathEmitter->sys->reset();
+	deathEmitter->start();
+	isAlive = false;
 	return;
 }
 
+
+// TODO:
+//
 float Player::getNearestAltitude(Octree oct) {
 	return 0;
 }
