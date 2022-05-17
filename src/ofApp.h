@@ -17,6 +17,7 @@ class ofApp : public ofBaseApp{
 		void draw();
 
 		void loadVbo(ParticleEmitter* emitter, ofVbo vbo);
+		void reset();
 		void keyPressed(int key);
 		void keyReleased(int key);
 		void mouseMoved(int x, int y );
@@ -62,12 +63,12 @@ class ofApp : public ofBaseApp{
 		ParticleSystem* sys;
 		ofxFloatSlider scale;
 		ofxFloatSlider thrust;
-		ofxFloatSlider thrustEmitterVelocityScale = 3;
+		ofxFloatSlider thrustEmitterVelocityScale = 5;
 		ofxFloatSlider thrustEmitterParticleRadius = 0.3;
 		ofxFloatSlider torque;
 		ofxFloatSlider restitution;
+		ofxFloatSlider gravity;
 		ofxIntSlider maxFuel;
-		glm::vec3 playerCenterOffset;
 		// Emitters
 		ofxFloatSlider thrustRate;
 		ofxIntSlider turbScale = 10;
@@ -75,8 +76,7 @@ class ofApp : public ofBaseApp{
 		ofxFloatSlider thrustParticleSize = 0.1f;
 		TurbulenceForce* turbulenceForce;
 		ImpulseRadialForce* radialForce;
-		ParticleEmitter* upwardThrustEmitter;
-		ParticleEmitter* forwardThrustEmitter;
+		ParticleEmitter* thrustEmitter;
 		ParticleEmitter* deathEmitter;
 		// SFX
 		ofSoundPlayer bgm;

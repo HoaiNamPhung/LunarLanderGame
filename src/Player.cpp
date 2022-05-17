@@ -39,7 +39,8 @@ void Player::integrate() {
 
 	// Zero out forces.
 	netForce = glm::vec3(0, 0, 0);
-}
+	cout << "Position: " << velocity << " | UpThrust?: " << isThrustingUpward << endl;
+}          
 
 void Player::addForce(Force* f) {
 	forces.push_back(f);
@@ -57,7 +58,7 @@ void Player::updateForces() {
 	}
 	// Apply upward force if applicable.
 	if (isThrustingUpward) {
-		glm::vec3 dirVector = glm::vec3(0, 1, 0);
+		glm::vec3 dirVector = glm::vec3(0, 1.0f, 0);
 		ImpulseForce* f = new ImpulseForce(thrust, dirVector);
 		addForce(f);
 	}
@@ -76,7 +77,7 @@ void Player::updateForces() {
 	// Update forces on ship.
 	for (int k = 0; k < forces.size(); k++) {
 		if (!forces[k]->applied)
-			forces[k]->updateForce(&netForce);
+   			forces[k]->updateForce(&netForce);
 	}
 	// Turn off impulse forces so that they aren't reapplied.
 	for (int i = 0; i < forces.size(); i++) {
@@ -92,12 +93,21 @@ void Player::removeSideSlipping() {
 		headingVector *= -1;
 	}
 	// Set residual velocity to be entirely directed in direction of heading vector.
+	// However, we maintain the y-velocity as it is unaffected by rotation.
+	float yVelocity = velocity.y;
 	float forwardVectorLength = glm::dot(velocity, headingVector);
 	glm::vec3 forwardVector = heading(forwardVectorLength);
 	if (aDir == ms::accelDir::BACKWARD) {
 		forwardVector *= -1;
 	}
-	velocity = forwardVector;
+	velocity.y = yVelocity;
+}
+
+void Player::removeResidualRotation() {
+	if (rDir == ms::rotateDir::NONE) {
+		angularAcceleration = 0;
+		angularVelocity = 0;
+	}
 }
 
 void Player::destroy(ParticleEmitter* deathEmitter) {
@@ -106,6 +116,58 @@ void Player::destroy(ParticleEmitter* deathEmitter) {
 	deathEmitter->start();
 	isAlive = false;
 	return;
+}
+
+void Player::toggleGravity(bool gravityOn) {
+	hasGravity = gravityOn;
+	// Apply gravity force on player.
+	if (hasGravity) {
+		gravityForce->set(gravity);
+	}
+	// No gravity.
+	else {
+		gravityForce->set(0);
+	}
+}
+
+void Player::reset() {
+	// Values
+	fuel = 0;
+	thrust = 0;
+	torque = 0;
+	restitution = 0;
+	// Physics Values
+	forces.clear();
+	forces.push_back(gravityForce);
+	angularVelocity = 0;
+	angularAcceleration = 0;
+	angularForce = 0;
+	gravity = 1;
+	// States
+	aDir = ms::accelDir::NONE;
+	rDir = ms::rotateDir::NONE;
+	hasGravity = false;
+	isThrustingUpward = false;
+	isAlive = false;
+	isLanded = false;
+	isCollided = false;
+	// Toggles
+	showHeadingVector = false;
+	// Particle values
+	velocity = glm::vec3(0, 0, 0);
+	acceleration = glm::vec3(0, 0, 0);
+	netForce = glm::vec3(0, 0, 0);
+	damping = 1;
+	mass = 1;
+	lifespan = 1;
+	radius = 1;
+	birthtime = 0;
+	color = ofColor::white;
+	// TransformObject values
+	position = glm::vec3(0, 0, 0);
+	rotation = glm::vec3(0, 0, 0);
+	scale = glm::vec3(0, 0, 0);
+	bSelected = false;
 }
 
 

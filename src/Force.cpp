@@ -19,3 +19,16 @@ void ImpulseForce::updateForce(glm::vec3* force) {
 	force->y += direction.y * magnitude;
 	force->z += direction.z * magnitude;
 }
+
+GForce::GForce(float magnitude) {
+	this->magnitude = magnitude;
+	applyOnce = false;
+}
+
+void GForce::setMagnitude(float magnitude) {
+	this->magnitude = magnitude;
+}
+
+void GForce::updateForce(glm::vec3* force) {
+	force->y += direction.y * magnitude;
+}

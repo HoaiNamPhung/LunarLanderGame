@@ -25,6 +25,7 @@ void ofApp::setup(){
 	bTerrainSelected = true;
 
 	// Preload shader textures
+	ofDisableArbTex();
 	if (!ofLoadImage(particleTex, "images/dot.png")) {
 		cout << "Particle Texture File: images/dot.png not found" << endl;
 		ofExit();
@@ -40,6 +41,7 @@ void ofApp::setup(){
 	cam.setNearClip(.1);
 	cam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
 	ofSetVerticalSync(true);
+	ofSetFrameRate(60);
 	cam.disableMouseInput();
 	ofEnableSmoothing();
 	ofEnableDepthTest();
@@ -58,6 +60,7 @@ void ofApp::setup(){
 	gui.add(thrust.setup("Player Thrust", 5, 1, 50));
 	gui.add(torque.setup("Player Torque", 50, 1, 300));
 	gui.add(restitution.setup("Player Restitution", 1, 1, 10));
+	gui.add(gravity.setup("Gravity", 2, 0, 10));
 	gui.add(maxFuel.setup("Max Fuel", 1, 1, 10));
 	gui.add(thrustRate.setup("Thrust Rate", 0.05, 0.01, 1));
 	gui.add(turbScale.setup("Turbulence Scale", 10, 0, 100));
@@ -65,13 +68,12 @@ void ofApp::setup(){
 
 	// Player
 	player = new Player();
-	sys = new ParticleSystem();
 	player->position = glm::vec3(0, 0, 0);
 	player->radius = 1.0;
 	player->lifespan = 100000;
 	player->isAlive = true;
-	sys->add(*player);
-	//sys->addForce(new GravityForce(ofVec3f(0, 9.8f, 0)));
+	player->gravity = gravity;
+	player->toggleGravity(true);
 	// Player model
 	player->model.loadModel("geo/lander.obj");
 	bLanderLoaded = true;
@@ -90,23 +92,15 @@ void ofApp::setup(){
 	turbulenceForce = new TurbulenceForce(glm::vec3((int)-turbScale, (int)-turbScale, (int)-turbScale), glm::vec3((int)turbScale, (int)turbScale, (int)turbScale));
 	radialForce = new ImpulseRadialForce(2000);
 	// Thrusters
-	glm::vec3 thrusterPos = player->position + playerCenterOffset; // center of player bounding box
-	forwardThrustEmitter = new ParticleEmitter();
-	forwardThrustEmitter->setEmitterType(DirectionalEmitter);
-	forwardThrustEmitter->setPosition(thrusterPos);
-	forwardThrustEmitter->setRate(thrustRate);
-	forwardThrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, 0, player->velocity.z));
-	forwardThrustEmitter->setLifespan(0.5);
-	forwardThrustEmitter->setParticleRadius(0.4);
-	forwardThrustEmitter->sys->addForce(turbulenceForce);
-	upwardThrustEmitter = new ParticleEmitter();
-	upwardThrustEmitter->setEmitterType(DirectionalEmitter);
-	upwardThrustEmitter->setPosition(thrusterPos);
-	upwardThrustEmitter->setRate(thrustRate);
-	upwardThrustEmitter->setVelocity(glm::vec3(0, -9.8f, 0));
-	upwardThrustEmitter->setLifespan(0.5);
-	upwardThrustEmitter->setParticleRadius(0.4);
-	upwardThrustEmitter->sys->addForce(turbulenceForce);
+	glm::vec3 thrusterPos = player->position;
+	thrustEmitter = new ParticleEmitter();
+	thrustEmitter->setEmitterType(DirectionalEmitter);
+	thrustEmitter->setPosition(thrusterPos);
+	thrustEmitter->setRate(thrustRate);
+	thrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, player->velocity.y, player->velocity.z));
+	thrustEmitter->setLifespan(0.5);
+	thrustEmitter->setParticleRadius(0.4);
+	thrustEmitter->sys->addForce(turbulenceForce);
 	// Death
 	deathEmitter = new ParticleEmitter();
 	deathEmitter->setOneShot(true);
@@ -136,9 +130,9 @@ void ofApp::update() {
 	player->thrust = thrust;
 	player->torque = torque;
 	player->restitution = restitution;
-	sys->update();
-	forwardThrustEmitter->setRate(thrustRate);
-	upwardThrustEmitter->setRate(thrustRate);
+	player->gravity = gravity;
+	player->toggleGravity(true);
+	thrustEmitter->setRate(thrustRate);
 
 	// Update physics if game is running.
 	if (!bPaused) {
@@ -146,22 +140,22 @@ void ofApp::update() {
 		player->updateForces();
 		player->integrate();
 		player->removeSideSlipping();
+		player->removeResidualRotation();
 		// Particle system movement.
-		forwardThrustEmitter->update();
-		upwardThrustEmitter->update();
+		thrustEmitter->update();
 		deathEmitter->update();
 		// Adjust position of objects attached to player.
 		player->model.setPosition(player->position.x, player->position.y, player->position.z);
 		player->model.setRotation(0, player->rotation.y, 0, 1, 0);
-		forwardThrustEmitter->setPosition(player->position);
-		upwardThrustEmitter->setPosition(player->position);
-		forwardThrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, 0, player->velocity.z) * (float) thrustEmitterVelocityScale);
+		thrustEmitter->setPosition(player->position);
+		thrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, (float) thrustEmitterVelocityScale, player->velocity.z));
 	}
 }
 //--------------------------------------------------------------
 void ofApp::draw() {
 
 	ofBackground(ofColor::black);
+	loadVbo(deathEmitter, vboDeath);
 
 	cam.begin();
 	ofPushMatrix();
@@ -255,21 +249,24 @@ void ofApp::draw() {
 
 	// Draw particle emitters.
 	if (player->isAlive && !bPaused) {
-		forwardThrustEmitter->draw();
-		upwardThrustEmitter->draw();
-		//deathEmitter->draw();
+		thrustEmitter->draw();
+		deathEmitter->draw();
 		// Shader based emitters.
-		loadVbo(deathEmitter, vboDeath);
+		glDepthMask(GL_FALSE);
+		ofSetColor(255, 100, 90);
 		ofEnableBlendMode(OF_BLENDMODE_ADD);
 		ofEnablePointSprites();
 		shader.begin();
+		cam.begin();
 		particleTex.bind();
 		vboDeath.draw(GL_POINTS, 0, (int)deathEmitter->sys->particles.size());
 		particleTex.unbind();
+		cam.end();
 		shader.end();
 		ofDisablePointSprites();
 		ofDisableBlendMode();
-		//ofEnableAlphaBlending();
+		ofEnableAlphaBlending();
+		glDepthMask(GL_TRUE);
 	}
 
 	ofPopMatrix();
@@ -306,6 +303,21 @@ void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo vbo) {
 	vbo.clear();
 	vbo.setVertexData(&points[0], total, GL_STATIC_DRAW);
 	vbo.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
+}
+
+// Resets the game state.
+//
+void ofApp::reset() {
+	player->reset();
+	player->position = glm::vec3(0, 0, 0);
+	player->radius = 1.0;
+	player->lifespan = 100000;
+	player->isAlive = true;
+	player->gravity = gravity;
+	player->toggleGravity(true);
+	player->model.setPosition(0, 0, 0);
+	thrustEmitter->stop();
+	ofResetElapsedTimeCounter();
 }
 
 // 
@@ -390,6 +402,9 @@ void ofApp::keyPressed(int key) {
 		break;
 	case OF_KEY_CONTROL:
 		bPaused = !bPaused;
+		if (bPaused) {
+			reset();
+		}
 		break;
 	case OF_KEY_SHIFT:
 		break;
@@ -409,21 +424,27 @@ void ofApp::keyPressed(int key) {
 	case 'w':
 	case 'W':
 		if (!player->isAlive || bPaused) break;
-		forwardThrustEmitter->sys->reset();
-		forwardThrustEmitter->start();
+		if (!player->isThrustingUpward) {
+			thrustEmitter->sys->reset();
+			thrustEmitter->start();
+		}
 		player->aDir = ms::accelDir::FORWARD;
 		break;
 	case OF_KEY_DOWN:   // go backward
 	case 's':
 	case 'S':
-		forwardThrustEmitter->sys->reset();
-		forwardThrustEmitter->start();
+		if (!player->isThrustingUpward) {
+			thrustEmitter->sys->reset();
+			thrustEmitter->start();
+		}
 		player->aDir = ms::accelDir::BACKWARD;
 		break;
 	case ' ':
 		if (!player->isAlive || bPaused) break;
-		upwardThrustEmitter->sys->reset();
-		upwardThrustEmitter->start();
+		if (player->aDir == ms::accelDir::NONE) {
+			thrustEmitter->sys->reset();
+			thrustEmitter->start();
+		}
 		player->isThrustingUpward = true;
 		break;
 	default:
@@ -467,17 +488,23 @@ void ofApp::keyReleased(int key) {
 	case 'w':
 	case 'W':
 		player->aDir = ms::accelDir::NONE;
-		forwardThrustEmitter->stop();
+		if (!player->isThrustingUpward) {
+			thrustEmitter->stop();
+		}
 		break;
 	case OF_KEY_DOWN:   // go backward
 	case 's':
 	case 'S':
 		player->aDir = ms::accelDir::NONE;
-		forwardThrustEmitter->stop();
+		if (!player->isThrustingUpward) {
+			thrustEmitter->stop();
+		}
 		break;
 	case ' ':
 		player->isThrustingUpward = false;
-		upwardThrustEmitter->stop();
+		if (player->aDir == ms::accelDir::NONE) {
+			thrustEmitter->stop();
+		}
 		break;
 	default:
 		break;
