@@ -69,6 +69,10 @@ class ofApp : public ofBaseApp{
 		ofxFloatSlider restitution;
 		ofxFloatSlider gravity;
 		ofxIntSlider maxFuel;
+		// Toggles
+		ofxToggle headingVectorToggle;
+		ofxToggle altitudeSensorToggle;
+		ofxToggle boundingBoxToggle;
 		// Emitters
 		ofxFloatSlider thrustRate;
 		ofxIntSlider turbScale = 10;

@@ -190,9 +190,7 @@ void Octree::subdivide(const ofMesh& mesh, TreeNode& node, int numLevels, int le
 
 }
 
-// Implement functions below for Homework project
-//
-
+// Ray-box intersection onto octree.
 bool Octree::intersect(const Ray& ray, const TreeNode& node, TreeNode& nodeRtn) {
 	bool intersects = false;
 	if (node.box.intersect(ray, -1000, 1000)) {
@@ -215,6 +213,7 @@ bool Octree::intersect(const Ray& ray, const TreeNode& node, TreeNode& nodeRtn) 
 	return intersects;
 }
 
+// Box-box intersection onto octree.
 bool Octree::intersect(const Box& box, TreeNode& node, vector<Box>& boxListRtn) {
 	bool intersects = false;
 	if (node.box.overlap(box)) {

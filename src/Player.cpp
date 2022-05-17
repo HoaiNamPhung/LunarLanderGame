@@ -18,6 +18,44 @@ bool Player::inside(glm::vec3 p) {
 	return false;
 }
 
+glm::vec3 Player::getCenter() {
+	glm::vec3 min = model.getSceneMin() + model.getPosition();
+	glm::vec3 max = model.getSceneMax() + model.getPosition();
+	return glm::vec3((max.x + min.x) / 2, (max.y + min.y) / 2, (max.z + min.z) / 2) + position;
+}
+
+glm::vec3 Player::getBottomCenter() {
+	glm::vec3 min = model.getSceneMin() + model.getPosition();
+	glm::vec3 max = model.getSceneMax() + model.getPosition();
+	return glm::vec3((max.x + min.x) / 2, min.y, (max.z + min.z) / 2) + position;
+}
+
+Box Player::updateBoundingBox() {
+	glm::vec3 min = model.getSceneMin() + model.getPosition();
+	glm::vec3 max = model.getSceneMax() + model.getPosition();
+	bBox = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+	return bBox;
+}
+
+Box Player::drawBoundingBox() {
+	ofNoFill();
+	ofSetColor(ofColor::white);
+	Octree::drawBox(bBox);
+	return bBox;
+}
+
+void Player::move() {
+	// Update physics.
+	updateForces();
+	integrate();
+	removeSideSlipping();
+	removeResidualRotation();
+	// Update model.
+	model.setPosition(position.x, position.y, position.z);
+	model.setRotation(0, rotation.y, 0, 1, 0);
+	updateBoundingBox();
+}
+
 void Player::integrate() {
 	// init current framerate (or you can use ofGetLastFrameTime())
 	float framerate = ofGetFrameRate();
@@ -40,7 +78,7 @@ void Player::integrate() {
 	// Zero out forces.
 	netForce = glm::vec3(0, 0, 0);
 	cout << "Position: " << velocity << " | UpThrust?: " << isThrustingUpward << endl;
-}          
+}
 
 void Player::addForce(Force* f) {
 	forces.push_back(f);
@@ -77,7 +115,7 @@ void Player::updateForces() {
 	// Update forces on ship.
 	for (int k = 0; k < forces.size(); k++) {
 		if (!forces[k]->applied)
-   			forces[k]->updateForce(&netForce);
+			forces[k]->updateForce(&netForce);
 	}
 	// Turn off impulse forces so that they aren't reapplied.
 	for (int i = 0; i < forces.size(); i++) {
@@ -115,6 +153,8 @@ void Player::destroy(ParticleEmitter* deathEmitter) {
 	deathEmitter->sys->reset();
 	deathEmitter->start();
 	isAlive = false;
+	// Place model outside of scene to emulate destruction.
+	model.setPosition(-1000, -1000, -1000);
 	return;
 }
 
@@ -170,16 +210,54 @@ void Player::reset() {
 	bSelected = false;
 }
 
+float Player::getNearestAltitude(Octree oct) {
+	glm::vec3 bottomCenter = getBottomCenter();
+	Ray ray = Ray(Vector3(bottomCenter.x, bottomCenter.y, bottomCenter.z), Vector3(0, -1, 0));
+	TreeNode intersectedNode;
+	bool pointExists = oct.intersect(ray, oct.root, intersectedNode);
+	// No terrain below; infinite altitude.
+	if (!pointExists) {
+		return -1;
+	}
+	// Get closest point.
+	glm::vec3 closestPoint;
+	float minDist = INT_MAX;
+	for (int i = 0; i < intersectedNode.points.size(); i++) {
+		glm::vec3 pt = oct.mesh.getVertex(intersectedNode.points[i]);
+		float dist = bottomCenter.y - pt.y;
+		if (dist < minDist) {
+			minDist = dist;
+			closestPoint = pt;
+		}
+	}
+	return minDist;
+}
+
+void Player::drawAltitudeSensor() {
+	if (!showAltitudeSensor) return;
+	glm::vec3 bottomCenter = getBottomCenter();
+	ofSetColor(ofColor::green);
+	ofDrawLine(bottomCenter, bottomCenter + glm::vec3(0, -1000, 0));
+	ofSetColor(ofColor::white);
+}
+
+glm::vec3 Player::getBottomCollisionPoint(Octree oct) {
+	vector<Box> boxes;
+	oct.intersect(bBox, oct.root, boxes);
+	glm::vec3 bottomCenter = getBottomCenter();
+	glm::vec3 closestPoint;
+	float minDist = INT_MAX;
+	for (int i = 0; i < boxes.size(); i++) {
+		float dist = bottomCenter.y - boxes[i].max().y();
+		if (dist < minDist) {
+			minDist = dist;
+			closestPoint = glm::vec3(boxes[i].center().x(), boxes[i].max().y(), boxes[i].center().z());
+		}
+	}
+	return closestPoint;
+}
 
 // TODO:
-//
-float Player::getNearestAltitude(Octree oct) {
-	return 0;
-}
-
-glm::vec3 Player::getCollisionPoint(Octree oct) {
-	return glm::vec3(0, 0, 0);
-}
 
 glm::vec3 Player::getBounceForce(glm::vec3 collisionPt) {
 	return glm::vec3(0, 0, 0);

@@ -12,6 +12,7 @@ public:
 	}
 	// Drawables
 	ofxAssimpModelLoader model;
+	Box bBox;
 	// Values
 	float fuel = 0;
 	float thrust = 0;
@@ -34,13 +35,24 @@ public:
 	bool isCollided = false;
 	// Toggles
 	bool showHeadingVector = false;
+	bool showAltitudeSensor = false;
 
 	// Gets the heading vector of the player, which rotates about player's y-axis.
 	glm::vec3 heading(float len);
 	// Draws a header vector pointing out from player direction.
 	void drawHeadingVector();
+	// Updates the bounding box position to physics position, then retrieves it.
+	Box updateBoundingBox();
+	// Draws and retrieves the bounding box.
+	Box drawBoundingBox();
+	// Gets center of model.
+	glm::vec3 getCenter();
+	// Gets center-bottom of model.
+	glm::vec3 getBottomCenter();
 	// Converts point to player object space and checks insideness.
 	bool inside(glm::vec3 p);
+	// Runs all per-frame physics calculations and moves the player model accordingly.
+	void move();
 	// Integrates forces on the player; updates linear and angular motion.
 	void integrate();
 	// Applies a force on the player.
@@ -55,8 +67,10 @@ public:
 	void destroy(ParticleEmitter* deathEmitter);
 	// Returns the distance between the lander and the closest terrain point directly below it.
 	float getNearestAltitude(Octree oct);
-	// Get the closest terrain point that collides with the lander.
-	glm::vec3 getCollisionPoint(Octree oct);
+	// Draws the altitude sensor ray on terrain.
+	void drawAltitudeSensor();
+	// Get the closest terrain point that collides with the bottom of the lander.
+	glm::vec3 getBottomCollisionPoint(Octree oct);
 	// Retrieves the bounce force of the player given a collided point.
 	glm::vec3 getBounceForce(glm::vec3 collisionPt);
 	// Turns gravity on/off.

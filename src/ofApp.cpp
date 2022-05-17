@@ -64,6 +64,9 @@ void ofApp::setup(){
 	gui.add(maxFuel.setup("Max Fuel", 1, 1, 10));
 	gui.add(thrustRate.setup("Thrust Rate", 0.05, 0.01, 1));
 	gui.add(turbScale.setup("Turbulence Scale", 10, 0, 100));
+	gui.add(headingVectorToggle.setup("Show Heading Vector", false));
+	gui.add(altitudeSensorToggle.setup("Show Altitude Sensor", false));
+	gui.add(boundingBoxToggle.setup("Show Bounding Box", false));
 	bHide = false;
 
 	// Player
@@ -83,10 +86,8 @@ void ofApp::setup(){
 	for (int i = 0; i < player->model.getMeshCount(); i++) {
 		bboxList.push_back(Octree::meshBounds(player->model.getMesh(i)));
 	}
-	// Get coordinates of center.
-	glm::vec3 min = player->model.getSceneMin();
-	glm::vec3 max = player->model.getSceneMax();
-	landerBounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+	// Set up bounding box.
+	player->updateBoundingBox();
 
 	/* Particle Emitters */
 	turbulenceForce = new TurbulenceForce(glm::vec3((int)-turbScale, (int)-turbScale, (int)-turbScale), glm::vec3((int)turbScale, (int)turbScale, (int)turbScale));
@@ -132,21 +133,18 @@ void ofApp::update() {
 	player->restitution = restitution;
 	player->gravity = gravity;
 	player->toggleGravity(true);
+	player->showHeadingVector = headingVectorToggle;
+	player->showAltitudeSensor = altitudeSensorToggle;
 	thrustEmitter->setRate(thrustRate);
 
 	// Update physics if game is running.
 	if (!bPaused) {
 		// Player states/movement.
-		player->updateForces();
-		player->integrate();
-		player->removeSideSlipping();
-		player->removeResidualRotation();
+		player->move();
 		// Particle system movement.
 		thrustEmitter->update();
 		deathEmitter->update();
 		// Adjust position of objects attached to player.
-		player->model.setPosition(player->position.x, player->position.y, player->position.z);
-		player->model.setRotation(0, player->rotation.y, 0, 1, 0);
 		thrustEmitter->setPosition(player->position);
 		thrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, (float) thrustEmitterVelocityScale, player->velocity.z));
 	}
@@ -189,16 +187,8 @@ void ofApp::draw() {
 			}
 
 			if (bLanderSelected) {
-
-				ofVec3f min = player->model.getSceneMin() + player->model.getPosition();
-				ofVec3f max = player->model.getSceneMax() + player->model.getPosition();
-
-				Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
-				ofNoFill();
-				ofSetColor(ofColor::white);
-				Octree::drawBox(bounds);
-
-				// draw colliding boxes
+				// draw colliding boxes on lander bounding box.
+				Box bounds = player->drawBoundingBox();
 				ofSetColor(ofColor::lightCoral);
 				for (int i = 0; i < colBoxList.size(); i++) {
 					Octree::drawBox(colBoxList[i]);
@@ -247,10 +237,17 @@ void ofApp::draw() {
 		ofDrawSphere(p, .02 * d.length());
 	}
 
-	// Draw particle emitters.
+	// Draw player attachments.
 	if (player->isAlive && !bPaused) {
+		// Draw particle emitters.
 		thrustEmitter->draw();
 		deathEmitter->draw();
+		// Draw directional vectors.
+		player->drawHeadingVector();
+		player->drawAltitudeSensor();
+		if (boundingBoxToggle) {
+			player->drawBoundingBox();
+		}
 		// Shader based emitters.
 		glDepthMask(GL_FALSE);
 		ofSetColor(255, 100, 90);
@@ -277,7 +274,23 @@ void ofApp::draw() {
 		ofDrawBitmapStringHighlight("Paused.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
 	}
 	else {
+		// Status: Bottom Right
+		ofSetColor(ofColor::white);
 		ofDrawBitmapStringHighlight("Running.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
+		// Gauges: Top Right
+		ofSetColor(ofColor::green);
+		float altitude = player->getNearestAltitude(octree);
+		ofDrawBitmapStringHighlight("ESTIMATED " + std::to_string(altitude) + "M", ofGetWindowWidth() - 100, 25);
+		ofDrawBitmapStringHighlight(std::to_string(ofGetFrameRate()) + " FPS", ofGetWindowWidth() - 100, 50);
+		// Controls: Bottom Left
+		ofSetColor(ofColor::yellow);
+		ofDrawBitmapStringHighlight("Thrust Upward: Space", 100, ofGetWindowHeight() - 125);
+		ofDrawBitmapStringHighlight("Thrust Forward/Backward: W/S", 100, ofGetWindowHeight() - 100);
+		ofDrawBitmapStringHighlight("Rotate Left/Right: A/D", 100, ofGetWindowHeight() - 75);
+		ofDrawBitmapStringHighlight("Toggle Mouse Controls: C", 100, ofGetWindowHeight() - 50);
+		ofDrawBitmapStringHighlight("Restart/Play: CTRL", 100, ofGetWindowHeight() - 25);
+		// GUI reserved for Top Left
+		ofSetColor(ofColor::white);
 	}
 
 	// Draw GUI
@@ -604,11 +617,7 @@ void ofApp::mouseDragged(int x, int y, int button) {
 		player->model.setPosition(landerPos.x, landerPos.y, landerPos.z);
 		mouseLastPos = mousePos;
 
-		ofVec3f min = player->model.getSceneMin() + player->model.getPosition();
-		ofVec3f max = player->model.getSceneMax() + player->model.getPosition();
-
-		Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
-
+		Box bounds = player->bBox;
 		colBoxList.clear();
 		// Time box intersection runtime.
 		ofResetElapsedTimeCounter();
@@ -803,10 +812,7 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 			glm::vec3 max = player->model.getSceneMax();
 			float offset = (max.y - min.y) / 2.0;
 			player->model.setPosition(intersectPoint.x, intersectPoint.y - offset, intersectPoint.z);
-
-			// set up bounding box for lander while we are at it
-			//
-			landerBounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+			player->updateBoundingBox();
 		}
 	}
 
