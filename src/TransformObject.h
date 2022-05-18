@@ -20,4 +20,5 @@ public:
 	void setScale(const glm::vec3 &);
 	void setScale(const float &);
 	glm::mat4 getMatrix();
+	glm::mat4 getMatrixNoRotation();
 };

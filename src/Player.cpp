@@ -67,6 +67,7 @@ void Player::move(Octree* oct, ParticleEmitter* deathEmitter) {
 	integrate();
 	removeSideSlipping();
 	removeResidualRotation();
+	//model.setRotation(1, rotation.y, 0, 1, 0);
 	collide(oct, deathEmitter);
 	updateBoundingBox();
 }

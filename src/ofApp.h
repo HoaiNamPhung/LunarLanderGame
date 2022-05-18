@@ -76,9 +76,6 @@ class ofApp : public ofBaseApp{
 		ofxVec3Slider fillSpecularColor;
 		ofxVec3Slider rimSpecularColor;*/
 
-
-
-
 		//background image
 		ofImage background;
 
@@ -138,9 +135,6 @@ class ofApp : public ofBaseApp{
 		float altitude = 0;
 		ofxVec3Slider positionSlider;
 		ofxVec3Slider velocitySlider;
-		//light 
-		ofLight keyLight;
-
 
 		// States
 		Camera::mode cameraState = Camera::mode::FIXED;

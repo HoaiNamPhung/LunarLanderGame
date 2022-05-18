@@ -77,8 +77,8 @@ void ofApp::setup(){
 	keyLight.setDiffuseColor(ofFloatColor(0.299, 0.3826, 0.346939));
 	keyLight.setSpecularColor(ofFloatColor(0, 0, 0));
 
-	keyLight.rotate(47, ofVec3f(0, 1, 0));
-	keyLight.rotate(45, ofVec3f(1, 0, 0));
+	keyLight.rotateDeg(47, ofVec3f(0, 1, 0));
+	keyLight.rotateDeg(45, ofVec3f(1, 0, 0));
 	keyLight.setPosition(ofVec3f(30.6122,20,13));
 
 	fillLight.setup();
@@ -90,8 +90,8 @@ void ofApp::setup(){
 	fillLight.setAmbientColor(ofFloatColor(0, 0, 0));
 	fillLight.setDiffuseColor(ofFloatColor(0.219388, 0.688724, 0.71));
 	fillLight.setSpecularColor(ofFloatColor(1, 1, 1));
-	fillLight.rotate(21, ofVec3f(1, 0, 0));
-	fillLight.rotate(-56, ofVec3f(0, 1, 0));
+	fillLight.rotateDeg(21, ofVec3f(1, 0, 0));
+	fillLight.rotateDeg(-56, ofVec3f(0, 1, 0));
 	fillLight.setPosition(ofVec3f(-23.4694, 32.6531, 63.2653));
 
 	rimLight.setup();
@@ -102,7 +102,7 @@ void ofApp::setup(){
 	rimLight.setAmbientColor(ofFloatColor(0.1, 0.0987245, 0.097449));
 	rimLight.setDiffuseColor(ofFloatColor(1, 1, 1));
 	rimLight.setSpecularColor(ofFloatColor(1,1,1));
-	rimLight.rotate(-38, ofVec3f(0, 1, 0));
+	rimLight.rotateDeg(-38, ofVec3f(0, 1, 0));
 	rimLight.setPosition(ofVec3f(30.6122,14.2857,-42.8571));
 
 
@@ -247,11 +247,11 @@ void ofApp::update() {
 		player->move(&octree, deathEmitter);
 		//camera tracking
 		playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
-		playerCam->rotateAround(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
+		playerCam->rotateAroundDeg(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
 		playerCam->lookAt(player->position);
 		fixed->lookAt(player->position);
 		spotlight.setPosition(player->position);
-		spotlight.rotateAround(player->rotation.y + 90, glm::vec3(0, 1, 0), player->position);
+		spotlight.rotateAroundDeg(player->rotation.y + 90, glm::vec3(0, 1, 0), player->position);
 		// Particle system movement.
 		thrustEmitter->update();
 		deathEmitter->update();
