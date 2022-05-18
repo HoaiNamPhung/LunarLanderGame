@@ -93,6 +93,12 @@ class ofApp : public ofBaseApp{
 		ofTexture particleTex;
 		ofShader shader;
 		ofVbo vboUpward, vboForward, vboDeath;
+		// Values
+		float spawnHeight = 0;
+		glm::vec3 spawnPos = glm::vec3(0, spawnHeight, 0);
+		float altitude = 0;
+		ofxVec3Slider positionSlider;
+		ofxVec3Slider velocitySlider;
 
 		// States
 		Camera::mode cameraState = Camera::mode::FIXED;

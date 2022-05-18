@@ -13,6 +13,7 @@ public:
 	// Drawables
 	ofxAssimpModelLoader model;
 	Box bBox;
+	Box bBoxWorldSpace;
 	// Values
 	float fuel = 0;
 	float thrust = 0;
@@ -37,6 +38,11 @@ public:
 	bool showHeadingVector = false;
 	bool showAltitudeSensor = false;
 
+	// Gets vector containing x, y, z widths of model.
+	glm::vec3 getDimensions();
+	// Readjusts model position if not drawn centered to player position.
+	glm::vec3 getModelOffset();
+
 	// Gets the heading vector of the player, which rotates about player's y-axis.
 	glm::vec3 heading(float len);
 	// Draws a header vector pointing out from player direction.
@@ -52,7 +58,7 @@ public:
 	// Converts point to player object space and checks insideness.
 	bool inside(glm::vec3 p);
 	// Runs all per-frame physics calculations and moves the player model accordingly.
-	void move();
+	void move(Octree* oct);
 	// Integrates forces on the player; updates linear and angular motion.
 	void integrate();
 	// Applies a force on the player.
@@ -66,13 +72,16 @@ public:
 	// Undraws the player and removes it from the scene. Emits a particle explosion to indicate destruction.
 	void destroy(ParticleEmitter* deathEmitter);
 	// Returns the distance between the lander and the closest terrain point directly below it.
-	float getNearestAltitude(Octree oct);
+	float getNearestAltitude(Octree* oct);
 	// Draws the altitude sensor ray on terrain.
 	void drawAltitudeSensor();
-	// Get the closest terrain point that collides with the bottom of the lander.
-	glm::vec3 getBottomCollisionPoint(Octree oct);
+	// Get the closest terrain point that collides with the bottom of the lander and places it in ptRtn. 
+	// Returns true if collided point exists.
+	bool getBottomCollisionPoint(Octree* oct, glm::vec3& ptRtn);
 	// Retrieves the bounce force of the player given a collided point.
 	glm::vec3 getBounceForce(glm::vec3 collisionPt);
+	// Checks for bottom collision, then assures player either stops, bounces, or destructs based on that collision's velocity.
+	bool collide(Octree* oct);
 	// Turns gravity on/off.
 	void toggleGravity(bool gravityOn);
 	// Resets player state to defaults, except parent TransformObject and model.

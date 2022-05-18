@@ -1,6 +1,17 @@
 #pragma once
 #include "Player.h"
 
+glm::vec3 Player::getDimensions() {
+	glm::vec3 min = model.getSceneMin();
+	glm::vec3 max = model.getSceneMax();
+	return max - min;
+}
+
+glm::vec3 Player::getModelOffset() {
+	glm::vec3 dim = getDimensions();
+	return glm::vec3(2.5 - dim.x / 2, -dim.y / 2, -dim.z);
+}
+
 glm::vec3 Player::heading(float len) {
 	glm::vec3 dir = glm::vec3(-sin(glm::radians(rotation.y)), 0, -cos(glm::radians(rotation.y)));
 	return len * glm::normalize(dir);
@@ -9,7 +20,7 @@ glm::vec3 Player::heading(float len) {
 void Player::drawHeadingVector() {
 	if (!showHeadingVector) return;
 	ofSetColor(ofColor::green);
-	ofDrawLine(position, position + heading(75.0f));
+	ofDrawLine(getCenter(), getCenter() + heading(75.0f));
 	ofSetColor(ofColor::white);
 }
 
@@ -19,40 +30,44 @@ bool Player::inside(glm::vec3 p) {
 }
 
 glm::vec3 Player::getCenter() {
-	glm::vec3 min = model.getSceneMin() + model.getPosition();
-	glm::vec3 max = model.getSceneMax() + model.getPosition();
+	glm::vec3 min = model.getSceneMin();
+	glm::vec3 max = model.getSceneMax();
 	return glm::vec3((max.x + min.x) / 2, (max.y + min.y) / 2, (max.z + min.z) / 2) + position;
 }
 
 glm::vec3 Player::getBottomCenter() {
-	glm::vec3 min = model.getSceneMin() + model.getPosition();
-	glm::vec3 max = model.getSceneMax() + model.getPosition();
+	glm::vec3 min = model.getSceneMin();
+	glm::vec3 max = model.getSceneMax();
 	return glm::vec3((max.x + min.x) / 2, min.y, (max.z + min.z) / 2) + position;
 }
 
 Box Player::updateBoundingBox() {
-	glm::vec3 min = model.getSceneMin() + model.getPosition();
-	glm::vec3 max = model.getSceneMax() + model.getPosition();
+	glm::vec3 min = model.getSceneMin();
+	glm::vec3 max = model.getSceneMax();
 	bBox = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+	glm::vec3 minWorld = min + position;
+	glm::vec3 maxWorld = max + position;
+	bBoxWorldSpace = Box(Vector3(minWorld.x, minWorld.y, minWorld.z), Vector3(maxWorld.x, maxWorld.y, maxWorld.z));
 	return bBox;
 }
 
 Box Player::drawBoundingBox() {
 	ofNoFill();
 	ofSetColor(ofColor::white);
+	ofPushMatrix();
+	ofMultMatrix(getMatrix());
 	Octree::drawBox(bBox);
+	ofPopMatrix();
 	return bBox;
 }
 
-void Player::move() {
+void Player::move(Octree* oct) {
 	// Update physics.
 	updateForces();
 	integrate();
 	removeSideSlipping();
 	removeResidualRotation();
-	// Update model.
-	model.setPosition(position.x, position.y, position.z);
-	model.setRotation(0, rotation.y, 0, 1, 0);
+	collide(oct);
 	updateBoundingBox();
 }
 
@@ -77,7 +92,7 @@ void Player::integrate() {
 
 	// Zero out forces.
 	netForce = glm::vec3(0, 0, 0);
-	cout << "Position: " << velocity << " | UpThrust?: " << isThrustingUpward << endl;
+	//cout << "Position: " << position << endl;
 }
 
 void Player::addForce(Force* f) {
@@ -210,11 +225,11 @@ void Player::reset() {
 	bSelected = false;
 }
 
-float Player::getNearestAltitude(Octree oct) {
+float Player::getNearestAltitude(Octree* oct) {
 	glm::vec3 bottomCenter = getBottomCenter();
 	Ray ray = Ray(Vector3(bottomCenter.x, bottomCenter.y, bottomCenter.z), Vector3(0, -1, 0));
 	TreeNode intersectedNode;
-	bool pointExists = oct.intersect(ray, oct.root, intersectedNode);
+	bool pointExists = oct->intersect(ray, oct->root, intersectedNode);
 	// No terrain below; infinite altitude.
 	if (!pointExists) {
 		return -1;
@@ -223,7 +238,7 @@ float Player::getNearestAltitude(Octree oct) {
 	glm::vec3 closestPoint;
 	float minDist = INT_MAX;
 	for (int i = 0; i < intersectedNode.points.size(); i++) {
-		glm::vec3 pt = oct.mesh.getVertex(intersectedNode.points[i]);
+		glm::vec3 pt = oct->mesh.getVertex(intersectedNode.points[i]);
 		float dist = bottomCenter.y - pt.y;
 		if (dist < minDist) {
 			minDist = dist;
@@ -241,23 +256,46 @@ void Player::drawAltitudeSensor() {
 	ofSetColor(ofColor::white);
 }
 
-glm::vec3 Player::getBottomCollisionPoint(Octree oct) {
+bool Player::getBottomCollisionPoint(Octree* oct, glm::vec3& ptRtn) {
 	vector<Box> boxes;
-	oct.intersect(bBox, oct.root, boxes);
+	oct->drawBox(bBoxWorldSpace);
+	oct->intersect(bBoxWorldSpace, oct->root, boxes);
 	glm::vec3 bottomCenter = getBottomCenter();
 	glm::vec3 closestPoint;
+	bool hasCollision = false;
 	float minDist = INT_MAX;
 	for (int i = 0; i < boxes.size(); i++) {
 		float dist = bottomCenter.y - boxes[i].max().y();
 		if (dist < minDist) {
 			minDist = dist;
+			// Get closest topmost vertex.
 			closestPoint = glm::vec3(boxes[i].center().x(), boxes[i].max().y(), boxes[i].center().z());
+			hasCollision = true;
 		}
 	}
-	return closestPoint;
+	ptRtn = closestPoint;
+	return hasCollision;
 }
 
-// TODO:
+bool Player::collide(Octree* oct) {
+	// Get point of collision with terrain on model underside.
+	glm::vec3 collisionPt;
+	isCollided = getBottomCollisionPoint(oct, collisionPt);
+	if (!isCollided) {
+		return false;
+	}
+	// Prevent model from going past terrain.
+	float modelBottomOffset = getDimensions().y / 2;
+	cout << "Terrain: " << collisionPt.y << " | Player Bottom: " << position.y << endl;
+	position.y = collisionPt.y;
+	if (velocity.y < 0) {
+		velocity.y = 0;
+	}
+	if (acceleration.y < 0) {
+		acceleration.y = 0;
+	}
+	return isCollided;
+}
 
 glm::vec3 Player::getBounceForce(glm::vec3 collisionPt) {
 	return glm::vec3(0, 0, 0);

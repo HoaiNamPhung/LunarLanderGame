@@ -202,8 +202,7 @@ bool Octree::intersect(const Ray& ray, const TreeNode& node, TreeNode& nodeRtn) 
 		// Otherwise, recurse through children. Stop at first leaf intersected.
 		else {
 			for (int i = 0; i < node.children.size(); i++) {
-				TreeNode currNode = node.children[i];
-				bool childIntersects = intersect(ray, currNode, nodeRtn);
+				bool childIntersects = intersect(ray, node.children[i], nodeRtn);
 				intersects = intersects || childIntersects;
 				if (intersects)
 					break;
@@ -225,8 +224,7 @@ bool Octree::intersect(const Box& box, TreeNode& node, vector<Box>& boxListRtn) 
 		// Otherwise, recurse through children until all intersections are retrieved.
 		else {
 			for (int i = 0; i < node.children.size(); i++) {
-				TreeNode currNode = node.children[i];
-				bool childIntersects = intersect(box, currNode, boxListRtn);
+				bool childIntersects = intersect(box, node.children[i], boxListRtn);
 				intersects = intersects || childIntersects;
 			}
 		}
@@ -237,9 +235,8 @@ bool Octree::intersect(const Box& box, TreeNode& node, vector<Box>& boxListRtn) 
 void Octree::draw(TreeNode& node, int numLevels, int level) {
 	drawBox(node.box);
 	for (int i = 0; i < node.children.size(); i++) {
-		TreeNode currNode = node.children[i];
 		if ((level + 1) < numLevels) {
-			draw(currNode, numLevels, level + 1);
+			draw(node.children[i], numLevels, level + 1);
 		}
 	}
 }
