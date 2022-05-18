@@ -23,7 +23,7 @@ void ofApp::setup(){
 	bAltKeyDown = false;
 	bLanderLoaded = false;
 	bTerrainSelected = true;
-
+	background.load("geo/background.jpg");
 	// Preload shader textures
 	ofDisableArbTex();
 	if (!ofLoadImage(particleTex, "images/dot.png")) {
@@ -182,12 +182,21 @@ void ofApp::update() {
 }
 //--------------------------------------------------------------
 void ofApp::draw() {
-
-	ofBackground(ofColor::black);
+	
+	//ofBackground(ofColor::black);
 	loadVbo(deathEmitter, vboDeath);
+	
+	
+	
+	glDepthMask(GL_FALSE);
+	ofSetColor(ofColor::white);
+	background.draw(ofGetWindowRect());
+	glDepthMask(GL_TRUE);
 
 	chooseCamera->begin();
+	
 	ofPushMatrix();
+	
 	if (bWireframe) {                    // wireframe mode  (include axis)
 		ofDisableLighting();
 		ofSetColor(ofColor::slateGray);
@@ -296,9 +305,10 @@ void ofApp::draw() {
 		ofEnableAlphaBlending();
 		glDepthMask(GL_TRUE);
 	}
-
+	
 	ofPopMatrix();
 	chooseCamera->end();
+	
 
 	// Draw HUD
 	if (bPaused) {

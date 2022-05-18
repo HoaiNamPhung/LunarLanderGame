@@ -47,6 +47,11 @@ class ofApp : public ofBaseApp{
 		ofCamera* fixed; 
 		ofCamera* playerCam; 
 		ofCamera* chooseCamera;
+
+
+		//background image
+		ofImage background;
+
 		ofxAssimpModelLoader moon;
 		ofLight light;
 		Box boundingBox, landerBounds;
