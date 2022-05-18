@@ -37,23 +37,28 @@ void ofApp::setup(){
 	#endif
 
 	// Camera
-	cam.setDistance(10);
-	cam.setNearClip(.1);
-	cam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
+	//easycam
+	cam = new ofEasyCam();
+	fixed = new ofCamera();
+	playerCam = new ofCamera();
+	cam->setDistance(10);
+	cam->setNearClip(.1);
+	cam->setFov(65.5);   // approx equivalent to 28mm in 35mm format
 	ofSetVerticalSync(true);
 	ofSetFrameRate(60);
-	cam.disableMouseInput();
+	cam->disableMouseInput();
 	ofEnableSmoothing();
 	ofEnableDepthTest();
+	
+
 
 
 	// Lighting
-	
 
 	initLightingAndMaterials();
 
 	// Load models
-	moon.loadModel("geo/moon-houdini.obj");
+	moon.loadModel("geo/terrain/terrain.dae");
 	moon.setScaleNormalization(false);
 
 	// GUI Sliders
@@ -89,6 +94,23 @@ void ofApp::setup(){
 	for (int i = 0; i < player->model.getMeshCount(); i++) {
 		bboxList.push_back(Octree::meshBounds(player->model.getMesh(i)));
 	}
+
+
+	//fixed cam
+	fixed->setFov(60);
+	fixed->setPosition(10, 40, 10);
+	fixed->lookAt(player->position);
+
+
+	//player cam
+	playerCam->setFov(60);
+	playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
+	playerCam->lookAt(player->position);
+	
+
+	//set default cam
+	chooseCamera = cam;
+
 	// Set up bounding box.
 	player->updateBoundingBox();
 
@@ -144,6 +166,12 @@ void ofApp::update() {
 	if (!bPaused) {
 		// Player states/movement.
 		player->move();
+		//camera tracking
+		playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
+		cout << "Rotation:" << player->rotation << endl;
+		playerCam->rotateAround(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
+		playerCam->lookAt(player->position);
+		fixed->lookAt(player->position);
 		// Particle system movement.
 		thrustEmitter->update();
 		deathEmitter->update();
@@ -158,7 +186,7 @@ void ofApp::draw() {
 	ofBackground(ofColor::black);
 	loadVbo(deathEmitter, vboDeath);
 
-	cam.begin();
+	chooseCamera->begin();
 	ofPushMatrix();
 	if (bWireframe) {                    // wireframe mode  (include axis)
 		ofDisableLighting();
@@ -235,7 +263,7 @@ void ofApp::draw() {
 	//
 	if (pointSelected) {
 		ofVec3f p = octree.mesh.getVertex(selectedNode.points[0]);
-		ofVec3f d = p - cam.getPosition();
+		ofVec3f d = p - chooseCamera->getPosition();
 		ofSetColor(ofColor::lightGreen);
 		ofDrawSphere(p, .02 * d.length());
 	}
@@ -257,11 +285,11 @@ void ofApp::draw() {
 		ofEnableBlendMode(OF_BLENDMODE_ADD);
 		ofEnablePointSprites();
 		shader.begin();
-		cam.begin();
+		chooseCamera->begin();
 		particleTex.bind();
 		vboDeath.draw(GL_POINTS, 0, (int)deathEmitter->sys->particles.size());
 		particleTex.unbind();
-		cam.end();
+		chooseCamera->end();
 		shader.end();
 		ofDisablePointSprites();
 		ofDisableBlendMode();
@@ -270,7 +298,7 @@ void ofApp::draw() {
 	}
 
 	ofPopMatrix();
-	cam.end();
+	chooseCamera->end();
 
 	// Draw HUD
 	if (bPaused) {
@@ -366,6 +394,15 @@ void ofApp::drawAxis(ofVec3f location) {
 void ofApp::keyPressed(int key) {
 
 	switch (key) {
+	case '1':
+		chooseCamera = fixed;
+		break;
+	case '2':
+		chooseCamera = playerCam;
+		break;
+	case '3':
+		chooseCamera = cam;
+		break;
 	case 'F':
 	case 'f':
 		ofToggleFullscreen();
@@ -383,13 +420,13 @@ void ofApp::keyPressed(int key) {
 		break;
 	case OF_KEY_F4:
 		cameraState = Camera::mode::EASYCAM;
-		cam.reset();
+		cam->reset();
 		break;
 	case 'C':
 	case 'c':
 	case OF_KEY_F5:
-		if (cam.getMouseInputEnabled()) cam.disableMouseInput();
-		else cam.enableMouseInput();
+		if (cam->getMouseInputEnabled()) cam->disableMouseInput();
+		else cam->enableMouseInput();
 		break;
 	case OF_KEY_F6:
 		setCameraTarget();
@@ -413,7 +450,7 @@ void ofApp::keyPressed(int key) {
 		toggleAltitudeSensor();
 		break;
 	case OF_KEY_ALT:
-		cam.enableMouseInput();
+		cam->enableMouseInput();
 		bAltKeyDown = true;
 		break;
 	case OF_KEY_CONTROL:
@@ -483,9 +520,8 @@ void ofApp::togglePointsDisplay() {
 void ofApp::keyReleased(int key) {
 
 	switch (key) {
-	
 	case OF_KEY_ALT:
-		cam.disableMouseInput();
+		cam->disableMouseInput();
 		bAltKeyDown = false;
 		break;
 	case OF_KEY_SHIFT:
@@ -542,13 +578,13 @@ void ofApp::mousePressed(int x, int y, int button) {
 
 	// if moving camera, don't allow mouse interaction
 	//
-	if (cam.getMouseInputEnabled()) return;
+	if (cam->getMouseInputEnabled()) return;
 
 	// if rover is loaded, test for selection
 	//
 	if (bLanderLoaded) {
-		glm::vec3 origin = cam.getPosition();
-		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+		glm::vec3 origin = chooseCamera->getPosition();
+		glm::vec3 mouseWorld = chooseCamera->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 
 		ofVec3f min = player->model.getSceneMin() + player->model.getPosition();
@@ -558,7 +594,7 @@ void ofApp::mousePressed(int x, int y, int button) {
 		bool hit = bounds.intersect(Ray(Vector3(origin.x, origin.y, origin.z), Vector3(mouseDir.x, mouseDir.y, mouseDir.z)), 0, 10000);
 		if (hit) {
 			bLanderSelected = true;
-			mouseDownPos = getMousePointOnPlane(player->model.getPosition(), cam.getZAxis());
+			mouseDownPos = getMousePointOnPlane(player->model.getPosition(), chooseCamera->getZAxis());
 			mouseLastPos = mouseDownPos;
 			bInDrag = true;
 		}
@@ -574,8 +610,8 @@ void ofApp::mousePressed(int x, int y, int button) {
 
 bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
 	ofVec3f mouse(mouseX, mouseY);
-	ofVec3f rayPoint = cam.screenToWorld(mouse);
-	ofVec3f rayDir = rayPoint - cam.getPosition();
+	ofVec3f rayPoint = chooseCamera->screenToWorld(mouse);
+	ofVec3f rayDir = rayPoint - chooseCamera->getPosition();
 	rayDir.normalize();
 	Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
 		Vector3(rayDir.x, rayDir.y, rayDir.z));
@@ -607,13 +643,13 @@ void ofApp::mouseDragged(int x, int y, int button) {
 
 	// if moving camera, don't allow mouse interaction
 	//
-	if (cam.getMouseInputEnabled()) return;
+	if (cam->getMouseInputEnabled()) return;
 
 	if (bInDrag) {
 
 		glm::vec3 landerPos = player->model.getPosition();
 
-		glm::vec3 mousePos = getMousePointOnPlane(landerPos, cam.getZAxis());
+		glm::vec3 mousePos = getMousePointOnPlane(landerPos, chooseCamera->getZAxis());
 		glm::vec3 delta = mousePos - mouseLastPos;
 	
 		landerPos += delta;
@@ -741,7 +777,7 @@ void ofApp::savePicture() {
 void ofApp::dragEvent2(ofDragInfo dragInfo) {
 
 	ofVec3f point;
-	mouseIntersectPlane(ofVec3f(0, 0, 0), cam.getZAxis(), point);
+	mouseIntersectPlane(ofVec3f(0, 0, 0), chooseCamera->getZAxis(), point);
 	if (player->model.loadModel(dragInfo.files[0])) {
 		player->model.setScaleNormalization(false);
 	//	player->model.setScale(.1, .1, .1);
@@ -760,8 +796,8 @@ void ofApp::dragEvent2(ofDragInfo dragInfo) {
 
 bool ofApp::mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point) {
 	ofVec2f mouse(mouseX, mouseY);
-	ofVec3f rayPoint = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
-	ofVec3f rayDir = rayPoint - cam.getPosition();
+	ofVec3f rayPoint = chooseCamera->screenToWorld(glm::vec3(mouseX, mouseY, 0));
+	ofVec3f rayDir = rayPoint - chooseCamera->getPosition();
 	rayDir.normalize();
 	return (rayIntersectPlane(rayPoint, rayDir, planePoint, planeNorm, point));
 }
@@ -794,9 +830,9 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 
 				// Setup our rays
 				//
-		glm::vec3 origin = cam.getPosition();
-		glm::vec3 camAxis = cam.getZAxis();
-		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+		glm::vec3 origin = chooseCamera->getPosition();
+		glm::vec3 camAxis = chooseCamera->getZAxis();
+		glm::vec3 mouseWorld = chooseCamera->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 		float distance;
 
@@ -828,9 +864,9 @@ void ofApp::dragEvent(ofDragInfo dragInfo) {
 glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 planePt, glm::vec3 planeNorm) {
 	// Setup our rays
 	//
-	glm::vec3 origin = cam.getPosition();
-	glm::vec3 camAxis = cam.getZAxis();
-	glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+	glm::vec3 origin = chooseCamera->getPosition();
+	glm::vec3 camAxis = chooseCamera->getZAxis();
+	glm::vec3 mouseWorld = chooseCamera->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 	glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 	float distance;
 

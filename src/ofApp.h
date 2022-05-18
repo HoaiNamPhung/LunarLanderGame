@@ -42,7 +42,11 @@ class ofApp : public ofBaseApp{
 		bool raySelectWithOctree(ofVec3f &pointRet);
 		glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 p , glm::vec3 n);
 
-		ofEasyCam cam;
+		//Cameras
+		ofEasyCam* cam;
+		ofCamera* fixed; 
+		ofCamera* playerCam; 
+		ofCamera* chooseCamera;
 		ofxAssimpModelLoader moon;
 		ofLight light;
 		Box boundingBox, landerBounds;
