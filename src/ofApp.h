@@ -48,6 +48,37 @@ class ofApp : public ofBaseApp{
 		ofCamera* chooseCamera;
 
 
+		//Lights
+		ofLight keyLight, fillLight, rimLight, spotlight;
+
+		/*ofxFloatSlider fillScale;
+		ofxFloatSlider rimScale;
+		ofxVec3Slider keyPos;
+		ofxVec3Slider fillPos;
+		ofxVec3Slider rimPos;
+		int prevKeyXRot;
+		int prevKeyYRot;
+		ofxIntSlider keyXRot;
+		ofxIntSlider keyYRot;
+		int prevFillXRot;
+		int prevFillYRot;
+		ofxIntSlider fillXRot;
+		ofxIntSlider fillYRot;
+		int prevRimYRot;
+		ofxIntSlider rimYRot;
+		ofxVec3Slider keyAmbientColor;
+		ofxVec3Slider fillAmbientColor;
+		ofxVec3Slider rimAmbientColor;
+		ofxVec3Slider keyDiffuseColor;
+		ofxVec3Slider fillDiffuseColor;
+		ofxVec3Slider rimDiffuseColor;
+		ofxVec3Slider keySpecularColor;
+		ofxVec3Slider fillSpecularColor;
+		ofxVec3Slider rimSpecularColor;*/
+
+
+
+
 		//background image
 		ofImage background;
 

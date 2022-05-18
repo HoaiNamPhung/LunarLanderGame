@@ -67,6 +67,53 @@ void ofApp::setup(){
 	gui.add(velocitySlider.setup("Velocity", glm::vec3(0, 0, 0), glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100)));
 	bHide = false;
 
+
+	//Light System
+
+	keyLight.setup();
+	keyLight.enable();
+	keyLight.setAreaLight(1, 1);
+	keyLight.setAmbientColor(ofFloatColor(0,0,0));
+	keyLight.setDiffuseColor(ofFloatColor(0.299, 0.3826, 0.346939));
+	keyLight.setSpecularColor(ofFloatColor(0, 0, 0));
+
+	keyLight.rotate(47, ofVec3f(0, 1, 0));
+	keyLight.rotate(45, ofVec3f(1, 0, 0));
+	keyLight.setPosition(ofVec3f(30.6122,20,13));
+
+	fillLight.setup();
+	fillLight.enable();
+	fillLight.setSpotlight();
+	fillLight.setScale(0);
+	fillLight.setSpotlightCutOff(15);
+	fillLight.setAttenuation(2, .001, .001);
+	fillLight.setAmbientColor(ofFloatColor(0, 0, 0));
+	fillLight.setDiffuseColor(ofFloatColor(0.219388, 0.688724, 0.71));
+	fillLight.setSpecularColor(ofFloatColor(1, 1, 1));
+	fillLight.rotate(21, ofVec3f(1, 0, 0));
+	fillLight.rotate(-56, ofVec3f(0, 1, 0));
+	fillLight.setPosition(ofVec3f(-23.4694, 32.6531, 63.2653));
+
+	rimLight.setup();
+	rimLight.enable();
+	rimLight.setAreaLight(1, 1);
+	rimLight.setScale(0);
+	rimLight.setAttenuation(.2, .001, .001);
+	rimLight.setAmbientColor(ofFloatColor(0.1, 0.0987245, 0.097449));
+	rimLight.setDiffuseColor(ofFloatColor(1, 1, 1));
+	rimLight.setSpecularColor(ofFloatColor(1,1,1));
+	rimLight.rotate(-38, ofVec3f(0, 1, 0));
+	rimLight.setPosition(ofVec3f(30.6122,14.2857,-42.8571));
+
+
+	spotlight.setup();
+	spotlight.enable();
+	spotlight.setAreaLight(0.25,0.25); 
+	spotlight.setScale(1);
+	spotlight.setAmbientColor(ofFloatColor(1, 1, 1));
+	spotlight.setDiffuseColor(ofFloatColor(0.4,0.4,0.4));
+	spotlight.setSpecularColor(ofFloatColor(1, 1, 1));
+	
 	// Player
 	player = new Player();
 	player->position = spawnPos;
@@ -108,6 +155,8 @@ void ofApp::setup(){
 	playerCam->setFov(60);
 	playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
 	playerCam->lookAt(player->position);
+	
+	spotlight.setPosition(player->position);
 	//set default cam
 	chooseCamera = cam;
 
@@ -160,6 +209,34 @@ void ofApp::update() {
 	player->showAltitudeSensor = altitudeSensorToggle;
 	thrustEmitter->setRate(thrustRate);
 
+
+
+	keyLight.setAreaLight(1, 1);
+	keyLight.setScale(0);
+	keyLight.setAmbientColor(ofFloatColor(0, 0, 0));
+	keyLight.setDiffuseColor(ofFloatColor(0.299, 0.3826, 0.346939));
+	keyLight.setSpecularColor(ofFloatColor(0, 0, 0));
+	keyLight.setPosition(ofVec3f(30.6122, 20, 13));
+
+	fillLight.setSpotlight();
+	fillLight.setScale(0);
+	fillLight.setSpotlightCutOff(15);
+	fillLight.setAttenuation(2, .001, .001);
+	fillLight.setAmbientColor(ofFloatColor(0, 0, 0));
+	fillLight.setDiffuseColor(ofFloatColor(0.219388, 0.688724, 0.71));
+	fillLight.setSpecularColor(ofFloatColor(1, 1, 1));
+
+	fillLight.setPosition(ofVec3f(-23.4694, 32.6531, 63.2653));
+
+	rimLight.setAreaLight(1, 1);
+	rimLight.setScale(0);
+	rimLight.setSpotlightCutOff(30);
+	rimLight.setAttenuation(.2, .001, .001);
+	rimLight.setAmbientColor(ofFloatColor(0.1, 0.0987245, 0.097449));
+	rimLight.setDiffuseColor(ofFloatColor(1, 1, 1));
+	rimLight.setSpecularColor(ofFloatColor(1, 1, 1));
+	rimLight.setPosition(ofVec3f(30.6122, 14.2857, -42.8571));
+
 	// Update sliders based on values.
 	velocitySlider = player->velocity;
 	positionSlider = player->position;
@@ -173,6 +250,8 @@ void ofApp::update() {
 		playerCam->rotateAround(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
 		playerCam->lookAt(player->position);
 		fixed->lookAt(player->position);
+		spotlight.setPosition(player->position);
+		spotlight.rotateAround(player->rotation.y + 90, glm::vec3(0, 1, 0), player->position);
 		// Particle system movement.
 		thrustEmitter->update();
 		deathEmitter->update();
@@ -196,9 +275,14 @@ void ofApp::draw() {
 
 	chooseCamera->begin();
 	ofPushMatrix();
-	
+	ofEnableLighting();
+
+	keyLight.draw();
+	fillLight.draw();
+	rimLight.draw();
+
 	if (bWireframe) {                    // wireframe mode  (include axis)
-		ofDisableLighting();
+	 	ofDisableLighting();
 		ofSetColor(ofColor::slateGray);
 		moon.drawWireframe();
 		if (bLanderLoaded) {
