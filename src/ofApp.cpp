@@ -58,7 +58,7 @@ void ofApp::setup(){
 	initLightingAndMaterials();
 
 	// Load models
-	moon.loadModel("geo/terrain/terrain.dae");
+	moon.loadModel("geo/terrain/untitled.dae");
 	moon.setScaleNormalization(false);
 
 	// GUI Sliders
@@ -75,8 +75,58 @@ void ofApp::setup(){
 	gui.add(headingVectorToggle.setup("Show Heading Vector", false));
 	gui.add(altitudeSensorToggle.setup("Show Altitude Sensor", false));
 	gui.add(boundingBoxToggle.setup("Show Bounding Box", false));
+	
+
+
 	bHide = false;
 
+
+	//Light System
+
+	keyLight.setup();
+	keyLight.enable();
+	keyLight.setAreaLight(1, 1);
+	keyLight.setAmbientColor(ofFloatColor(0,0,0));
+	keyLight.setDiffuseColor(ofFloatColor(0.299, 0.3826, 0.346939));
+	keyLight.setSpecularColor(ofFloatColor(0, 0, 0));
+
+	keyLight.rotate(47, ofVec3f(0, 1, 0));
+	keyLight.rotate(45, ofVec3f(1, 0, 0));
+	keyLight.setPosition(ofVec3f(30.6122,20,13));
+
+	fillLight.setup();
+	fillLight.enable();
+	fillLight.setSpotlight();
+	fillLight.setScale(0);
+	fillLight.setSpotlightCutOff(15);
+	fillLight.setAttenuation(2, .001, .001);
+	fillLight.setAmbientColor(ofFloatColor(0, 0, 0));
+	fillLight.setDiffuseColor(ofFloatColor(0.219388, 0.688724, 0.71));
+	fillLight.setSpecularColor(ofFloatColor(1, 1, 1));
+	fillLight.rotate(21, ofVec3f(1, 0, 0));
+	fillLight.rotate(-56, ofVec3f(0, 1, 0));
+	fillLight.setPosition(ofVec3f(-23.4694, 32.6531, 63.2653));
+
+	rimLight.setup();
+	rimLight.enable();
+	rimLight.setAreaLight(1, 1);
+	rimLight.setScale(0);
+	rimLight.setAttenuation(.2, .001, .001);
+	rimLight.setAmbientColor(ofFloatColor(0.1, 0.0987245, 0.097449));
+	rimLight.setDiffuseColor(ofFloatColor(1, 1, 1));
+	rimLight.setSpecularColor(ofFloatColor(1,1,1));
+	rimLight.rotate(-38, ofVec3f(0, 1, 0));
+	rimLight.setPosition(ofVec3f(30.6122,14.2857,-42.8571));
+
+
+	spotlight.setup();
+	spotlight.enable();
+	spotlight.setAreaLight(0.25,0.25); 
+	spotlight.setScale(1);
+	spotlight.setAmbientColor(ofFloatColor(1, 1, 1));
+	spotlight.setDiffuseColor(ofFloatColor(0.4,0.4,0.4));
+	spotlight.setSpecularColor(ofFloatColor(1, 1, 1));
+	
 	// Player
 	player = new Player();
 	player->position = glm::vec3(0, 0, 0);
@@ -97,17 +147,17 @@ void ofApp::setup(){
 
 
 	//fixed cam
-	fixed->setFov(60);
+	fixed->setFov(65.5);
 	fixed->setPosition(10, 40, 10);
 	fixed->lookAt(player->position);
 
 
 	//player cam
-	playerCam->setFov(60);
+	playerCam->setFov(65.5);
 	playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
 	playerCam->lookAt(player->position);
 	
-
+	spotlight.setPosition(player->position);
 	//set default cam
 	chooseCamera = cam;
 
@@ -142,6 +192,7 @@ void ofApp::setup(){
 	// Create Octree for testing and time how long it took to build the tree.
 	ofResetElapsedTimeCounter();
 	octree.create(moon.getMesh(0), 20);
+	moon.setRotation(1, 90, 1, 0, 0);
 	cout << "Tree creation time: " << ofGetElapsedTimeMillis() << " ms" << endl;
 	cout << "Number of Verts: " << moon.getMesh(0).getNumVertices() << endl;
 	testBox = Box(Vector3(3, 3, 0), Vector3(5, 5, 2));
@@ -162,6 +213,34 @@ void ofApp::update() {
 	player->showAltitudeSensor = altitudeSensorToggle;
 	thrustEmitter->setRate(thrustRate);
 
+
+
+	keyLight.setAreaLight(1, 1);
+	keyLight.setScale(0);
+	keyLight.setAmbientColor(ofFloatColor(0, 0, 0));
+	keyLight.setDiffuseColor(ofFloatColor(0.299, 0.3826, 0.346939));
+	keyLight.setSpecularColor(ofFloatColor(0, 0, 0));
+	keyLight.setPosition(ofVec3f(30.6122, 20, 13));
+
+	fillLight.setSpotlight();
+	fillLight.setScale(0);
+	fillLight.setSpotlightCutOff(15);
+	fillLight.setAttenuation(2, .001, .001);
+	fillLight.setAmbientColor(ofFloatColor(0, 0, 0));
+	fillLight.setDiffuseColor(ofFloatColor(0.219388, 0.688724, 0.71));
+	fillLight.setSpecularColor(ofFloatColor(1, 1, 1));
+
+	fillLight.setPosition(ofVec3f(-23.4694, 32.6531, 63.2653));
+
+	rimLight.setAreaLight(1, 1);
+	rimLight.setScale(0);
+	rimLight.setSpotlightCutOff(30);
+	rimLight.setAttenuation(.2, .001, .001);
+	rimLight.setAmbientColor(ofFloatColor(0.1, 0.0987245, 0.097449));
+	rimLight.setDiffuseColor(ofFloatColor(1, 1, 1));
+	rimLight.setSpecularColor(ofFloatColor(1, 1, 1));
+	rimLight.setPosition(ofVec3f(30.6122, 14.2857, -42.8571));
+
 	// Update physics if game is running.
 	if (!bPaused) {
 		// Player states/movement.
@@ -172,6 +251,8 @@ void ofApp::update() {
 		playerCam->rotateAround(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
 		playerCam->lookAt(player->position);
 		fixed->lookAt(player->position);
+		spotlight.setPosition(player->position);
+		spotlight.rotateAround(player->rotation.y + 90, glm::vec3(0, 1, 0), player->position);
 		// Particle system movement.
 		thrustEmitter->update();
 		deathEmitter->update();
@@ -196,9 +277,14 @@ void ofApp::draw() {
 	chooseCamera->begin();
 	
 	ofPushMatrix();
-	
+	ofEnableLighting();
+
+	keyLight.draw();
+	fillLight.draw();
+	rimLight.draw();
+
 	if (bWireframe) {                    // wireframe mode  (include axis)
-		ofDisableLighting();
+	 	ofDisableLighting();
 		ofSetColor(ofColor::slateGray);
 		moon.drawWireframe();
 		if (bLanderLoaded) {

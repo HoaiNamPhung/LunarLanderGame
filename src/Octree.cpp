@@ -133,7 +133,7 @@ void Octree::create(const ofMesh& geo, int numLevels) {
 	root.box = meshBounds(mesh);
 	if (!bUseFaces) {
 		for (int i = 0; i < mesh.getNumVertices(); i++) {
-			root.points.push_back(i);
+				root.points.push_back(i);
 		}
 	}
 	else {
