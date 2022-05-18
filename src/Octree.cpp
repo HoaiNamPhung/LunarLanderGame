@@ -235,6 +235,7 @@ bool Octree::intersect(const Box& box, TreeNode& node, vector<Box>& boxListRtn) 
 void Octree::draw(TreeNode& node, int numLevels, int level) {
 	drawBox(node.box);
 	for (int i = 0; i < node.children.size(); i++) {
+		TreeNode currNode = node.children[i];
 		if ((level + 1) < numLevels) {
 			draw(node.children[i], numLevels, level + 1);
 		}
