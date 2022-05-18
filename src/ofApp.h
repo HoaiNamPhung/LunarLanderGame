@@ -16,7 +16,7 @@ class ofApp : public ofBaseApp{
 		void update();
 		void draw();
 
-		void loadVbo(ParticleEmitter* emitter, ofVbo vbo);
+		void loadVbo(ParticleEmitter* emitter, ofVbo* vbo);
 		void reset();
 		void keyPressed(int key);
 		void keyReleased(int key);
@@ -36,7 +36,6 @@ class ofApp : public ofBaseApp{
 		void toggleWireframeMode();
 		void togglePointsDisplay();
 		void toggleSelectTerrain();
-		void toggleAltitudeSensor();
 		void setCameraTarget();
 		bool mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point);
 		bool raySelectWithOctree(ofVec3f &pointRet);
@@ -103,7 +102,7 @@ class ofApp : public ofBaseApp{
 		ofShader shader;
 		ofVbo vboUpward, vboForward, vboDeath;
 		// Values
-		float spawnHeight = 0;
+		float spawnHeight = 30;
 		glm::vec3 spawnPos = glm::vec3(0, spawnHeight, 0);
 		float altitude = 0;
 		ofxVec3Slider positionSlider;

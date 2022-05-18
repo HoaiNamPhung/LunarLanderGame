@@ -24,6 +24,7 @@ void ofApp::setup(){
 	bLanderLoaded = false;
 	bTerrainSelected = true;
 	background.load("geo/background.jpg");
+
 	// Preload shader textures
 	ofDisableArbTex();
 	if (!ofLoadImage(particleTex, "images/dot.png")) {
@@ -36,29 +37,16 @@ void ofApp::setup(){
 		shader.load("shaders/shader");
 	#endif
 
-	// Camera
-	//easycam
-	cam = new ofEasyCam();
-	fixed = new ofCamera();
-	playerCam = new ofCamera();
-	cam->setDistance(10);
-	cam->setNearClip(.1);
-	cam->setFov(65.5);   // approx equivalent to 28mm in 35mm format
-	ofSetVerticalSync(true);
-	ofSetFrameRate(60);
-	cam->disableMouseInput();
-	ofEnableSmoothing();
-	ofEnableDepthTest();
-	
-
-
-
 	// Lighting
-
 	initLightingAndMaterials();
 
 	// Load models
 	moon.loadModel("geo/terrain/terrain.dae");
+	//moon.loadModel("geo/terrain/terrain_rotated.dae");
+	//moon.loadModel("geo/moon-houdini.obj");
+	for (int i = 0; i < moon.getMeshNames().size(); i++) {
+		cout << moon.getMeshNames()[i] << endl;
+	}
 	moon.setScaleNormalization(false);
 
 	// GUI Sliders
@@ -75,8 +63,8 @@ void ofApp::setup(){
 	gui.add(headingVectorToggle.setup("Show Heading Vector", false));
 	gui.add(altitudeSensorToggle.setup("Show Altitude Sensor", false));
 	gui.add(boundingBoxToggle.setup("Show Bounding Box", false));
-	//gui.add(positionSlider.setup("Position", glm::vec3(0, 0, 0), glm::vec3(-1000, -1000, -1000), glm::vec3(1000, 1000, 1000)));
-	//gui.add(velocitySlider.setup("Velocity", glm::vec3(0, 0, 0), glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100)));
+	gui.add(positionSlider.setup("Position", glm::vec3(0, 0, 0), glm::vec3(-1000, -1000, -1000), glm::vec3(1000, 1000, 1000)));
+	gui.add(velocitySlider.setup("Velocity", glm::vec3(0, 0, 0), glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100)));
 	bHide = false;
 
 	// Player
@@ -88,28 +76,38 @@ void ofApp::setup(){
 	player->gravity = gravity;
 	player->toggleGravity(true);
 	// Model
-	player->model.loadModel("geo/lander.obj");
+	//player->model.loadModel("geo/lander.obj");
+	//player->model.loadModel("geo/submarine.obj");
+	player->model.loadModel("geo/submarine.dae");
 	bLanderLoaded = true;
 	player->model.setScaleNormalization(false);
 	player->model.setPosition(0, 0, 0);
 	bboxList.clear();
-	for (int i = 0; i < player->model.getMeshCount(); i++) {
-		bboxList.push_back(Octree::meshBounds(player->model.getMesh(i)));
-	}
 
-
+	// CAMERA
+	//easy cam
+	cam = new ofEasyCam();
+	cam->setDistance(10);
+	cam->setNearClip(.1);
+	cam->setFov(65.5);   // approx equivalent to 28mm in 35mm format
+	cam->setPosition(0, spawnHeight + 50, 0);
+	cam->rotateDeg(180, spawnPos);
+	cam->lookAt(player->position);
+	ofSetVerticalSync(true);
+	ofSetFrameRate(60);
+	cam->disableMouseInput();
+	ofEnableSmoothing();
+	ofEnableDepthTest();
 	//fixed cam
+	fixed = new ofCamera();
 	fixed->setFov(60);
 	fixed->setPosition(10, 40, 10);
 	fixed->lookAt(player->position);
-
-
 	//player cam
+	playerCam = new ofCamera();
 	playerCam->setFov(60);
 	playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
 	playerCam->lookAt(player->position);
-	
-
 	//set default cam
 	chooseCamera = cam;
 
@@ -139,9 +137,9 @@ void ofApp::setup(){
 	deathEmitter->sys->addForce(radialForce);
 	deathEmitter->sys->addForce(turbulenceForce);
 
-	// Create Octree for testing and time how long it took to build the tree.
+	// Create Octrees for each seperate terrain mesh
 	ofResetElapsedTimeCounter();
-	octree.create(moon.getMesh(0), 20);
+	octree.create(moon.getMesh(3), 20);
 	cout << "Tree creation time: " << ofGetElapsedTimeMillis() << " ms" << endl;
 	cout << "Number of Verts: " << moon.getMesh(0).getNumVertices() << endl;
 	testBox = Box(Vector3(3, 3, 0), Vector3(5, 5, 2));
@@ -169,10 +167,9 @@ void ofApp::update() {
 	// Update physics if game is running.
 	if (!bPaused) {
 		// Player states/movement.
-		player->move(&octree);
+		player->move(&octree, deathEmitter);
 		//camera tracking
 		playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
-		cout << "Rotation:" << player->rotation << endl;
 		playerCam->rotateAround(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
 		playerCam->lookAt(player->position);
 		fixed->lookAt(player->position);
@@ -187,10 +184,17 @@ void ofApp::update() {
 }
 //--------------------------------------------------------------
 void ofApp::draw() {
-	
-	//ofBackground(ofColor::black);
-	loadVbo(deathEmitter, vboDeath);
-	
+
+	// Preload shader buffer.
+	loadVbo(deathEmitter, &vboDeath);
+
+	// Background
+	glDepthMask(GL_FALSE);
+	ofSetColor(ofColor::white);
+	background.draw(ofGetWindowRect());
+	glDepthMask(GL_TRUE);
+
+	chooseCamera->begin();
 	ofPushMatrix();
 	
 	if (bWireframe) {                    // wireframe mode  (include axis)
@@ -282,7 +286,7 @@ void ofApp::draw() {
 		}
 		// Draw particle emitters.
 		thrustEmitter->draw();
-		deathEmitter->draw();
+		//deathEmitter->draw();
 		// Shader based emitters.
 		glDepthMask(GL_FALSE);
 		ofSetColor(255, 100, 90);
@@ -300,7 +304,6 @@ void ofApp::draw() {
 		ofEnableAlphaBlending();
 		glDepthMask(GL_TRUE);
 	}
-	
 	ofPopMatrix();
 	chooseCamera->end();
 	
@@ -319,15 +322,15 @@ void ofApp::draw() {
 		ofDrawBitmapStringHighlight("ESTIMATED " + std::to_string(altitude) + "M", ofGetWindowWidth() - 200, 25);
 		ofDrawBitmapStringHighlight(std::to_string(ofGetFrameRate()) + " FPS", ofGetWindowWidth() - 200, 50);
 	}
-		// Controls: Bottom Left
-		ofSetColor(ofColor::yellow);
+	// Controls: Bottom Left
+	ofSetColor(ofColor::yellow);
 	ofDrawBitmapStringHighlight("Thrust Upward: Space", 50, ofGetWindowHeight() - 125);
 	ofDrawBitmapStringHighlight("Thrust Forward/Backward: W/S", 50, ofGetWindowHeight() - 100);
 	ofDrawBitmapStringHighlight("Rotate Left/Right: A/D", 50, ofGetWindowHeight() - 75);
 	ofDrawBitmapStringHighlight("Toggle Mouse Controls: C", 50, ofGetWindowHeight() - 50);
 	ofDrawBitmapStringHighlight("Restart/Play: CTRL", 50, ofGetWindowHeight() - 25);
-		// GUI reserved for Top Left
-		ofSetColor(ofColor::white);
+	// GUI reserved for Top Left
+	ofSetColor(ofColor::white);
 	glDepthMask(false);
 	if (!bHide) gui.draw();
 	glDepthMask(true);
@@ -335,7 +338,7 @@ void ofApp::draw() {
 
 // load vertex buffer in preparation for rendering
 //
-void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo vbo) {
+void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo* vbo) {
 	if (emitter->sys->particles.size() < 1) return;
 
 	vector<ofVec3f> sizes;
@@ -347,9 +350,9 @@ void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo vbo) {
 	// upload the data to the vbo
 	//
 	int total = (int)points.size();
-	vbo.clear();
-	vbo.setVertexData(&points[0], total, GL_STATIC_DRAW);
-	vbo.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
+	vbo->clear();
+	vbo->setVertexData(&points[0], total, GL_STATIC_DRAW);
+	vbo->setNormalData(&sizes[0], total, GL_STATIC_DRAW);
 }
 
 // Resets the game state.
@@ -397,49 +400,55 @@ void ofApp::drawAxis(ofVec3f location) {
 void ofApp::keyPressed(int key) {
 
 	switch (key) {
-	case '1':
-		chooseCamera = fixed;
-		break;
-	case '2':
-		chooseCamera = playerCam;
-		break;
-	case '3':
-		chooseCamera = cam;
-		break;
 	case 'F':
 	case 'f':
 		ofToggleFullscreen();
 		break;
 	case 'V':
 		break;
+	case '1':
 	case OF_KEY_F1:
-		cameraState = Camera::mode::FIXED;
+		chooseCamera = fixed;
 		break;
+	case '2':
 	case OF_KEY_F2:
-		cameraState = Camera::mode::ONBOARD;
+		chooseCamera = playerCam;
 		break;
+	case '3':
 	case OF_KEY_F3:
-		cameraState = Camera::mode::EASYCAM;
+		chooseCamera = cam;
 		break;
+	case '4':
 	case OF_KEY_F4:
-		cameraState = Camera::mode::EASYCAM;
+		chooseCamera = cam;
 		cam->reset();
+		cam->setDistance(10);
+		cam->setNearClip(.1);
+		cam->setFov(65.5);   // approx equivalent to 28mm in 35mm format
+		cam->setPosition(0, spawnHeight + 30, 0);
+		cam->rotateDeg(180, spawnPos);
+		cam->lookAt(player->position);
 		break;
 	case 'C':
 	case 'c':
+	case '5':
 	case OF_KEY_F5:
 		if (cam->getMouseInputEnabled()) cam->disableMouseInput();
 		else cam->enableMouseInput();
 		break;
+	case '6':
 	case OF_KEY_F6:
 		setCameraTarget();
 		break;
+	case '7':
 	case OF_KEY_F7:
 		bDisplayOctree = !bDisplayOctree;
 		break;
+	case '8':
 	case OF_KEY_F8:
 		bDisplayLeafNodes = !bDisplayLeafNodes;
 		break;
+	case '9':
 	case OF_KEY_F9:
 		toggleWireframeMode();
 		break;
@@ -450,7 +459,9 @@ void ofApp::keyPressed(int key) {
 		bDisplayBBoxes = !bDisplayBBoxes;
 		break;
 	case OF_KEY_F12:
-		toggleAltitudeSensor();
+		player->drawAltitudeSensor();
+		player->drawHeadingVector();
+		player->drawBoundingBox();
 		break;
 	case OF_KEY_ALT:
 		cam->enableMouseInput();
@@ -628,12 +639,6 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
 		cout << "Index: " << std::to_string(selectedNode.points[0]) << endl;
 	}
 	return pointSelected;
-}
-
-// TODO:
-void ofApp::toggleAltitudeSensor() {
-	player->getNearestAltitude(&octree);
-	return;
 }
 
 //--------------------------------------------------------------

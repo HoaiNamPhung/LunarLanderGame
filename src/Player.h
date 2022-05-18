@@ -26,6 +26,8 @@ public:
 	float angularForce = 0;
 	float gravity = 1;
 	GForce* gravityForce = new GForce(gravity);
+	float bounceVelocity = -1;
+	float deathVelocity = -5;
 	// States
 	ms::accelDir aDir = ms::accelDir::NONE;
 	ms::rotateDir rDir = ms::rotateDir::NONE;
@@ -58,7 +60,7 @@ public:
 	// Converts point to player object space and checks insideness.
 	bool inside(glm::vec3 p);
 	// Runs all per-frame physics calculations and moves the player model accordingly.
-	void move(Octree* oct);
+	void move(Octree* oct, ParticleEmitter* deathEmitter);
 	// Integrates forces on the player; updates linear and angular motion.
 	void integrate();
 	// Applies a force on the player.
@@ -78,10 +80,11 @@ public:
 	// Get the closest terrain point that collides with the bottom of the lander and places it in ptRtn. 
 	// Returns true if collided point exists.
 	bool getBottomCollisionPoint(Octree* oct, glm::vec3& ptRtn);
-	// Retrieves the bounce force of the player given a collided point.
-	glm::vec3 getBounceForce(glm::vec3 collisionPt);
+	// Retrieves the bounce normal of the player given a collided point.
+	glm::vec3 getBounceNormal(glm::vec3 collisionPt);
 	// Checks for bottom collision, then assures player either stops, bounces, or destructs based on that collision's velocity.
-	bool collide(Octree* oct);
+	// Returns: -1 = no collision; 0 = stop; 1 = bounce; 2 = selfdestruct; 3 = unexpected/side-based collision.
+	int collide(Octree* oct, ParticleEmitter* deathEmitter);
 	// Turns gravity on/off.
 	void toggleGravity(bool gravityOn);
 	// Resets player state to defaults, except parent TransformObject and model.

@@ -34,7 +34,7 @@ glm::mat4 TransformObject::getMatrix() {
 	glm::mat4 trans = glm::translate(glm::mat4(1.0), glm::vec3(position));
 	glm::mat4 rot = glm::rotate(glm::mat4(1.0), glm::radians(rotation).y, glm::vec3(0, 1, 0));	// Only rotates on y-axis; assumed that only Player will rotate.
 	glm::mat4 sca = glm::scale(glm::mat4(1.0), glm::vec3(scale));
-	glm::mat4 mat = trans * rot * sca;
+	glm::mat4 mat = trans * sca * rot;
 	if (parent) mat = parent->getMatrix() * mat; // Recursive transformation heirarchy.
 	return mat;
 }

@@ -61,13 +61,13 @@ Box Player::drawBoundingBox() {
 	return bBox;
 }
 
-void Player::move(Octree* oct) {
+void Player::move(Octree* oct, ParticleEmitter* deathEmitter) {
 	// Update physics.
 	updateForces();
 	integrate();
 	removeSideSlipping();
 	removeResidualRotation();
-	collide(oct);
+	collide(oct, deathEmitter);
 	updateBoundingBox();
 }
 
@@ -164,7 +164,7 @@ void Player::removeResidualRotation() {
 }
 
 void Player::destroy(ParticleEmitter* deathEmitter) {
-	deathEmitter->setPosition(position);
+	deathEmitter->setPosition(getCenter());
 	deathEmitter->sys->reset();
 	deathEmitter->start();
 	isAlive = false;
@@ -277,26 +277,48 @@ bool Player::getBottomCollisionPoint(Octree* oct, glm::vec3& ptRtn) {
 	return hasCollision;
 }
 
-bool Player::collide(Octree* oct) {
+int Player::collide(Octree* oct, ParticleEmitter* deathEmitter) {
 	// Get point of collision with terrain on model underside.
 	glm::vec3 collisionPt;
 	isCollided = getBottomCollisionPoint(oct, collisionPt);
 	if (!isCollided) {
-		return false;
+		return -1;
 	}
 	// Prevent model from going past terrain.
 	float modelBottomOffset = getDimensions().y / 2;
 	cout << "Terrain: " << collisionPt.y << " | Player Bottom: " << position.y << endl;
 	position.y = collisionPt.y;
-	if (velocity.y < 0) {
+
+	// Reaction based on fall velocity.
+	// Selfdestruct
+	if (velocity.y < deathVelocity) {
+		destroy(deathEmitter);
+		return 2;
+	}
+	// Bounce
+	else if (velocity.y < bounceVelocity) {
+		glm::vec3 normal = getBounceNormal(collisionPt);
+		glm::vec3 bounce = (restitution + 1.0) * ((glm::dot(-velocity, normal)) * normal);
+		ImpulseForce* bounceForce = new ImpulseForce(glm::length(bounce), glm::normalize(bounce));
+		addForce(bounceForce);
 		velocity.y = 0;
+		if (acceleration.y < 0) {
+			acceleration.y = 0;
+		}
+		return 1;
 	}
-	if (acceleration.y < 0) {
-		acceleration.y = 0;
+	// Stop
+	else if (velocity.y < 0) {
+		velocity.y = 0;
+		if (acceleration.y < 0) {
+			acceleration.y = 0;
+		}
+		return 0;
 	}
-	return isCollided;
+	// Side-based collision or unexpected.
+	return 3;
 }
 
-glm::vec3 Player::getBounceForce(glm::vec3 collisionPt) {
-	return glm::vec3(0, 0, 0);
+glm::vec3 Player::getBounceNormal(glm::vec3 collisionPt) {
+	return glm::vec3(0, -velocity.y, 0);
 }
