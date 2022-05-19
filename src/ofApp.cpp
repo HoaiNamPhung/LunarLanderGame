@@ -294,12 +294,9 @@ void ofApp::update() {
 			if (landing->currLandDuration >= landing->landDuration) {
 				playerLanded = true;
 			}
-			bPaused = !bPaused;
-
 		}
 		if (!player->isAlive) {
 			playerDead = true;
-			bPaused = !bPaused;
 		}
 	}
 
@@ -468,28 +465,32 @@ void ofApp::draw() {
 		ofDrawBitmapStringHighlight("Paused.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
 		
 	}
+	string msg = "";
 	if (!player->isAlive) {
-		ofDrawBitmapStringHighlight("Crash Landed; optimal landing velocity < " + std::to_string(player->bounceVelocity), ofGetWindowWidth() / 2, 25, ofColor::red);
-	
+		msg = "Crash Landed; optimal landing velocity < " + std::to_string(player->bounceVelocity);
 	}
 	if (playerLanded) {
-		ofDrawBitmapStringHighlight("Great Landing!", ofGetWindowWidth() / 2 + 10, 25,ofColor::blue);
-		
+		msg = "Great Landing!";
 	}
 	if (!player->isAlive || playerLanded) {
-		ofDrawBitmapStringHighlight("Press CTRL to play again.", ofGetWindowWidth() / 2 + 10, 25);
+		ofDrawBitmapStringHighlight(msg, ofGetWindowWidth() / 2 - (msg.length() / 2), 25, ofColor::red);
+		ofDrawBitmapStringHighlight("Press CTRL to play again.", ofGetWindowWidth() / 2 + 10, 50);
 	}
-	else {
-		// Status: Bottom Right
-		ofSetColor(ofColor::white);
-		ofDrawBitmapStringHighlight("Running.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
-		// Gauges: Top Right
-		ofSetColor(ofColor::green);
-		altitude = player->getNearestAltitude(&octree);
-		ofDrawBitmapStringHighlight("ESTIMATED " + std::to_string(altitude) + "M", ofGetWindowWidth() - 200, 25);
-		ofDrawBitmapStringHighlight("Fuel: " + std::to_string(player->fuel) + " sec", ofGetWindowWidth() - 200, 50);
-		ofDrawBitmapStringHighlight(std::to_string(ofGetFrameRate()) + " FPS", ofGetWindowWidth() - 200, 75);
+	if (bPaused) {
+		ofDrawBitmapStringHighlight("Press CTRL to start.", ofGetWindowWidth() / 2 + 10, 25);
 	}
+	// Status: Bottom Right
+	ofSetColor(ofColor::white);
+	ofDrawBitmapStringHighlight("Running.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
+	// Gauges: Top Right
+	ofSetColor(ofColor::green);
+	float currAltitude = player->getNearestAltitude(&octree);
+	if (currAltitude >= 0) {
+		altitude = currAltitude;
+	}
+	ofDrawBitmapStringHighlight("ESTIMATED " + std::to_string(altitude) + "M", ofGetWindowWidth() - 200, 25);
+	ofDrawBitmapStringHighlight("Fuel: " + std::to_string(player->fuel) + " sec", ofGetWindowWidth() - 200, 50);
+	ofDrawBitmapStringHighlight(std::to_string(ofGetFrameRate()) + " FPS", ofGetWindowWidth() - 200, 75);
 	// Controls: Bottom Left
 	ofSetColor(ofColor::yellow);
 	ofDrawBitmapStringHighlight("Thrust Upward: Space", 50, ofGetWindowHeight() - 125);
