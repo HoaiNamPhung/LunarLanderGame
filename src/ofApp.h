@@ -16,6 +16,7 @@ class ofApp : public ofBaseApp{
 		void update();
 		void draw();
 
+		void drawShader(ofVbo* vbo, ParticleEmitter* emitter, ofShader* shader, ofTexture* particleTex, ofColor color);
 		void loadVbo(ParticleEmitter* emitter, ofVbo* vbo);
 		void reset();
 		void keyPressed(int key);
@@ -109,6 +110,7 @@ class ofApp : public ofBaseApp{
 		ofxToggle headingVectorToggle;
 		ofxToggle altitudeSensorToggle;
 		ofxToggle boundingBoxToggle;
+		ofxToggle requireFuelToggle;
 		// Emitters
 		ofxFloatSlider thrustRate;
 		ofxIntSlider turbScale = 10;
@@ -128,7 +130,7 @@ class ofApp : public ofBaseApp{
 		// Shader
 		ofTexture particleTex;
 		ofShader shader;
-		ofVbo vboUpward, vboForward, vboDeath;
+		ofVbo vboThrust, vboDeath;
 		// Values
 		float spawnHeight = 30;
 		glm::vec3 spawnPos = glm::vec3(0, spawnHeight, 0);

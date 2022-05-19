@@ -7,11 +7,6 @@ glm::vec3 Player::getDimensions() {
 	return max - min;
 }
 
-glm::vec3 Player::getModelOffset() {
-	glm::vec3 dim = getDimensions();
-	return glm::vec3(2.5 - dim.x / 2, -dim.y / 2, -dim.z);
-}
-
 glm::vec3 Player::heading(float len) {
 	glm::vec3 dir = glm::vec3(-sin(glm::radians(rotation.y)), 0, -cos(glm::radians(rotation.y)));
 	return len * glm::normalize(dir);
@@ -70,6 +65,7 @@ void Player::move(Octree* oct, ParticleEmitter* deathEmitter) {
 	//model.setRotation(1, rotation.y, 0, 1, 0);
 	collide(oct, deathEmitter);
 	updateBoundingBox();
+	lastUpdateTime = ofGetElapsedTimef();
 }
 
 void Player::integrate() {
@@ -101,6 +97,7 @@ void Player::addForce(Force* f) {
 }
 
 void Player::updateForces() {
+	float currUpdateTime = ofGetElapsedTimef();
 	// Apply forward force based on player movement direction.
 	if (aDir != ms::accelDir::NONE) {
 		glm::vec3 dirVector = heading(1.0f);
@@ -111,10 +108,11 @@ void Player::updateForces() {
 		addForce(f);
 	}
 	// Apply upward force if applicable.
-	if (isThrustingUpward) {
+	if (isThrustingUpward && (fuel > 0 || !requireFuel)) {
 		glm::vec3 dirVector = glm::vec3(0, 1.0f, 0);
 		ImpulseForce* f = new ImpulseForce(thrust, dirVector);
 		addForce(f);
+		fuel -= currUpdateTime - lastUpdateTime;
 	}
 	// Apply rotational force based on player rotation direction.
 	if (rDir != ms::rotateDir::NONE) {
@@ -187,8 +185,10 @@ void Player::toggleGravity(bool gravityOn) {
 }
 
 void Player::reset() {
+	bBoxWorldSpace = bBox;
 	// Values
-	fuel = 0;
+	maxFuel = 0;
+	fuel = maxFuel;
 	thrust = 0;
 	torque = 0;
 	restitution = 0;
@@ -199,6 +199,8 @@ void Player::reset() {
 	angularAcceleration = 0;
 	angularForce = 0;
 	gravity = 1;
+	float bounceVelocity = -1;
+	float deathVelocity = -5;
 	// States
 	aDir = ms::accelDir::NONE;
 	rDir = ms::rotateDir::NONE;
@@ -208,7 +210,9 @@ void Player::reset() {
 	isLanded = false;
 	isCollided = false;
 	// Toggles
+	requireFuel = false;
 	showHeadingVector = false;
+	showAltitudeSensor = false;
 	// Particle values
 	velocity = glm::vec3(0, 0, 0);
 	acceleration = glm::vec3(0, 0, 0);
@@ -302,18 +306,17 @@ int Player::collide(Octree* oct, ParticleEmitter* deathEmitter) {
 		glm::vec3 bounce = (restitution + 1.0) * ((glm::dot(-velocity, normal)) * normal);
 		ImpulseForce* bounceForce = new ImpulseForce(glm::length(bounce), glm::normalize(bounce));
 		addForce(bounceForce);
-		velocity.y = 0;
-		if (acceleration.y < 0) {
-			acceleration.y = 0;
-		}
+		velocity.y = 0.01f; // Prevent stop from activating (@ vel < 0)
 		return 1;
 	}
 	// Stop
 	else if (velocity.y < 0) {
+		/*
 		velocity.y = 0;
 		if (acceleration.y < 0) {
 			acceleration.y = 0;
 		}
+		*/
 		return 0;
 	}
 	// Side-based collision or unexpected.

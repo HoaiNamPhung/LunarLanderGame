@@ -15,6 +15,7 @@ public:
 	Box bBox;
 	Box bBoxWorldSpace;
 	// Values
+	int maxFuel = 0;
 	float fuel = 0;
 	float thrust = 0;
 	float torque = 0;
@@ -28,6 +29,7 @@ public:
 	GForce* gravityForce = new GForce(gravity);
 	float bounceVelocity = -1;
 	float deathVelocity = -5;
+	float lastUpdateTime = 0;
 	// States
 	ms::accelDir aDir = ms::accelDir::NONE;
 	ms::rotateDir rDir = ms::rotateDir::NONE;
@@ -37,14 +39,12 @@ public:
 	bool isLanded = false;
 	bool isCollided = false;
 	// Toggles
+	bool requireFuel = false;
 	bool showHeadingVector = false;
 	bool showAltitudeSensor = false;
 
 	// Gets vector containing x, y, z widths of model.
 	glm::vec3 getDimensions();
-	// Readjusts model position if not drawn centered to player position.
-	glm::vec3 getModelOffset();
-
 	// Gets the heading vector of the player, which rotates about player's y-axis.
 	glm::vec3 heading(float len);
 	// Draws a header vector pointing out from player direction.

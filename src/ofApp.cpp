@@ -27,8 +27,8 @@ void ofApp::setup(){
 
 	// Preload shader textures
 	ofDisableArbTex();
-	if (!ofLoadImage(particleTex, "images/dot.png")) {
-		cout << "Particle Texture File: images/dot.png not found" << endl;
+	if (!ofLoadImage(particleTex, "images/Bubble.png")) {
+		cout << "Particle Texture File: images/Bubble.png not found" << endl;
 		ofExit();
 	}
 	#ifdef TARGET_OPENGLES
@@ -41,7 +41,8 @@ void ofApp::setup(){
 	initLightingAndMaterials();
 
 	// Load models
-	moon.loadModel("geo/terrain/terrain.dae");
+	moon.loadModel("geo/terrain/terrain_singlemesh_-x_y.dae");
+	moon.setRotation(0, 90, 1, 0, 0);
 	//moon.loadModel("geo/terrain/terrain_rotated.dae");
 	//moon.loadModel("geo/moon-houdini.obj");
 	for (int i = 0; i < moon.getMeshNames().size(); i++) {
@@ -57,16 +58,16 @@ void ofApp::setup(){
 	gui.add(torque.setup("Player Torque", 50, 1, 300));
 	gui.add(restitution.setup("Player Restitution", 1, 1, 10));
 	gui.add(gravity.setup("Gravity", 2, 0, 10));
-	gui.add(maxFuel.setup("Max Fuel", 1, 1, 10));
+	gui.add(maxFuel.setup("Max Fuel", 120, 0, 600));
 	gui.add(thrustRate.setup("Thrust Rate", 0.05, 0.01, 1));
 	gui.add(turbScale.setup("Turbulence Scale", 10, 0, 100));
 	gui.add(headingVectorToggle.setup("Show Heading Vector", false));
 	gui.add(altitudeSensorToggle.setup("Show Altitude Sensor", false));
 	gui.add(boundingBoxToggle.setup("Show Bounding Box", false));
+	gui.add(requireFuelToggle.setup("Use Fuel for Thrusters", true));
 	gui.add(positionSlider.setup("Position", glm::vec3(0, 0, 0), glm::vec3(-1000, -1000, -1000), glm::vec3(1000, 1000, 1000)));
 	gui.add(velocitySlider.setup("Velocity", glm::vec3(0, 0, 0), glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100)));
 	bHide = false;
-
 
 	//Light System
 
@@ -105,10 +106,9 @@ void ofApp::setup(){
 	rimLight.rotateDeg(-38, ofVec3f(0, 1, 0));
 	rimLight.setPosition(ofVec3f(30.6122,14.2857,-42.8571));
 
-
 	spotlight.setup();
 	spotlight.enable();
-	spotlight.setAreaLight(0.25,0.25); 
+	spotlight.setSpotlight(); 
 	spotlight.setScale(1);
 	spotlight.setAmbientColor(ofFloatColor(1, 1, 1));
 	spotlight.setDiffuseColor(ofFloatColor(0.4,0.4,0.4));
@@ -179,7 +179,7 @@ void ofApp::setup(){
 	deathEmitter->setOneShot(true);
 	deathEmitter->setEmitterType(RadialEmitter);
 	deathEmitter->setVelocity(ofVec3f(0, 0, 0));
-	deathEmitter->setGroupSize(1000);
+	deathEmitter->setGroupSize(100);
 	deathEmitter->setRate(0);
 	deathEmitter->setLifespan(2);
 	deathEmitter->setParticleRadius(1);
@@ -188,7 +188,7 @@ void ofApp::setup(){
 
 	// Create Octrees for each seperate terrain mesh
 	ofResetElapsedTimeCounter();
-	octree.create(moon.getMesh(3), 20);
+	octree.create(moon.getMesh(0), 20);
 	cout << "Tree creation time: " << ofGetElapsedTimeMillis() << " ms" << endl;
 	cout << "Number of Verts: " << moon.getMesh(0).getNumVertices() << endl;
 	testBox = Box(Vector3(3, 3, 0), Vector3(5, 5, 2));
@@ -205,11 +205,11 @@ void ofApp::update() {
 	player->restitution = restitution;
 	player->gravity = gravity;
 	player->toggleGravity(true);
+	player->maxFuel = maxFuel;
 	player->showHeadingVector = headingVectorToggle;
 	player->showAltitudeSensor = altitudeSensorToggle;
+	player->requireFuel = requireFuelToggle;
 	thrustEmitter->setRate(thrustRate);
-
-
 
 	keyLight.setAreaLight(1, 1);
 	keyLight.setScale(0);
@@ -225,7 +225,6 @@ void ofApp::update() {
 	fillLight.setAmbientColor(ofFloatColor(0, 0, 0));
 	fillLight.setDiffuseColor(ofFloatColor(0.219388, 0.688724, 0.71));
 	fillLight.setSpecularColor(ofFloatColor(1, 1, 1));
-
 	fillLight.setPosition(ofVec3f(-23.4694, 32.6531, 63.2653));
 
 	rimLight.setAreaLight(1, 1);
@@ -244,13 +243,16 @@ void ofApp::update() {
 	// Update physics if game is running.
 	if (!bPaused) {
 		// Player states/movement.
-		player->move(&octree, deathEmitter);
+		if (player->isAlive) {
+			player->move(&octree, deathEmitter);
+		}
 		//camera tracking
 		playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
-		playerCam->rotateAroundDeg(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
+		playerCam->rotateAroundDeg(player->rotation.y + 90, glm::vec3(0,-1,0), player->position);
 		playerCam->lookAt(player->position);
 		fixed->lookAt(player->position);
 		spotlight.setPosition(player->position);
+		cout << "Rotation: " << player->rotation << endl;
 		spotlight.rotateAroundDeg(player->rotation.y + 90, glm::vec3(0, 1, 0), player->position);
 		// Particle system movement.
 		thrustEmitter->update();
@@ -266,6 +268,7 @@ void ofApp::draw() {
 
 	// Preload shader buffer.
 	loadVbo(deathEmitter, &vboDeath);
+	loadVbo(thrustEmitter, &vboThrust);
 
 	// Background
 	glDepthMask(GL_FALSE);
@@ -286,8 +289,11 @@ void ofApp::draw() {
 		ofSetColor(ofColor::slateGray);
 		moon.drawWireframe();
 		if (bLanderLoaded) {
+			ofPushMatrix();
+			ofMultMatrix(player->getMatrix());
 			player->model.drawWireframe();
 			if (!bTerrainSelected) drawAxis(player->model.getPosition());
+			ofPopMatrix();
 		}
 		if (bTerrainSelected) drawAxis(ofVec3f(0, 0, 0));
 	}
@@ -361,32 +367,23 @@ void ofApp::draw() {
 	}
 
 	// Draw player attachments.
-	if (player->isAlive && !bPaused) {
-		// Draw directional vectors.
-		player->drawHeadingVector();
-		player->drawAltitudeSensor();
-		if (boundingBoxToggle) {
-			player->drawBoundingBox();
+	if (!bPaused) {
+		if (player->isAlive) {
+			// Draw directional vectors.
+			player->drawHeadingVector();
+			player->drawAltitudeSensor();
+			if (boundingBoxToggle) {
+				player->drawBoundingBox();
+			}
+			// Draw particle emitters.
+			//thrustEmitter->draw();
+			//deathEmitter->draw();
+			// Draw shader based particle emitters.
+			drawShader(&vboThrust, thrustEmitter, &shader, &particleTex, ofColor::aliceBlue);
 		}
-		// Draw particle emitters.
-		thrustEmitter->draw();
-		//deathEmitter->draw();
-		// Shader based emitters.
-		glDepthMask(GL_FALSE);
-		ofSetColor(255, 100, 90);
-		ofEnableBlendMode(OF_BLENDMODE_ADD);
-		ofEnablePointSprites();
-		shader.begin();
-		chooseCamera->begin();
-		particleTex.bind();
-		vboDeath.draw(GL_POINTS, 0, (int)deathEmitter->sys->particles.size());
-		particleTex.unbind();
-		chooseCamera->end();
-		shader.end();
-		ofDisablePointSprites();
-		ofDisableBlendMode();
-		ofEnableAlphaBlending();
-		glDepthMask(GL_TRUE);
+		else if (!player->isAlive) {
+			drawShader(&vboDeath, deathEmitter, &shader, &particleTex, ofColor::lightYellow);
+		}
 	}
 	ofPopMatrix();
 	chooseCamera->end();
@@ -404,7 +401,8 @@ void ofApp::draw() {
 		ofSetColor(ofColor::green);
 		altitude = player->getNearestAltitude(&octree);
 		ofDrawBitmapStringHighlight("ESTIMATED " + std::to_string(altitude) + "M", ofGetWindowWidth() - 200, 25);
-		ofDrawBitmapStringHighlight(std::to_string(ofGetFrameRate()) + " FPS", ofGetWindowWidth() - 200, 50);
+		ofDrawBitmapStringHighlight("Fuel: " + std::to_string(player->fuel) + " sec", ofGetWindowWidth() - 200, 50);
+		ofDrawBitmapStringHighlight(std::to_string(ofGetFrameRate()) + " FPS", ofGetWindowWidth() - 200, 75);
 	}
 	// Controls: Bottom Left
 	ofSetColor(ofColor::yellow);
@@ -418,6 +416,23 @@ void ofApp::draw() {
 	glDepthMask(false);
 	if (!bHide) gui.draw();
 	glDepthMask(true);
+}
+
+// Draw shader.
+void ofApp::drawShader(ofVbo* vbo, ParticleEmitter* emitter, ofShader* shader, ofTexture* particleTex, ofColor color) {
+	glDepthMask(GL_FALSE);
+	ofSetColor(color);
+	ofEnableBlendMode(OF_BLENDMODE_ADD);
+	ofEnablePointSprites();
+	shader->begin();
+	particleTex->bind();
+	vbo->draw(GL_POINTS, 0, (int)emitter->sys->particles.size());
+	particleTex->unbind();
+	shader->end();
+	ofDisablePointSprites();
+	ofDisableBlendMode();
+	ofEnableAlphaBlending();
+	glDepthMask(GL_TRUE);
 }
 
 // load vertex buffer in preparation for rendering
@@ -446,10 +461,12 @@ void ofApp::reset() {
 	player->position = spawnPos;
 	player->radius = 1.0;
 	player->lifespan = 100000;
-	player->isAlive = true;
+	player->model.setPosition(0, 0, 0);
 	player->gravity = gravity;
 	player->toggleGravity(true);
-	player->model.setPosition(0, 0, 0);
+	player->requireFuel = true;
+	player->fuel = maxFuel;
+	player->isAlive = true;
 	thrustEmitter->stop();
 	ofResetElapsedTimeCounter();
 }
@@ -526,26 +543,19 @@ void ofApp::keyPressed(int key) {
 		break;
 	case '7':
 	case OF_KEY_F7:
+		togglePointsDisplay();
 		bDisplayOctree = !bDisplayOctree;
 		break;
 	case '8':
 	case OF_KEY_F8:
-		bDisplayLeafNodes = !bDisplayLeafNodes;
+		toggleWireframeMode();
+		bDisplayBBoxes = !bDisplayBBoxes;
 		break;
 	case '9':
 	case OF_KEY_F9:
-		toggleWireframeMode();
-		break;
-	case OF_KEY_F10:
-		togglePointsDisplay();
-		break;
-	case OF_KEY_F11:
-		bDisplayBBoxes = !bDisplayBBoxes;
-		break;
-	case OF_KEY_F12:
-		player->drawAltitudeSensor();
-		player->drawHeadingVector();
-		player->drawBoundingBox();
+		player->showAltitudeSensor = !player->showAltitudeSensor;
+		player->showHeadingVector = !player->showHeadingVector;
+		boundingBoxToggle = !boundingBoxToggle;
 		break;
 	case OF_KEY_ALT:
 		cam->enableMouseInput();
