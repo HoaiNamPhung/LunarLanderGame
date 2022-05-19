@@ -291,7 +291,7 @@ int Player::collide(Octree* oct, ParticleEmitter* deathEmitter) {
 	// Prevent model from going past terrain.
 	float modelBottomOffset = getDimensions().y / 2;
 	cout << "Terrain: " << collisionPt.y << " | Player Bottom: " << position.y << endl;
-	position.y = collisionPt.y;
+	//position.y = collisionPt.y;
 
 	// Reaction based on fall velocity.
 	// Selfdestruct

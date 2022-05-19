@@ -6,7 +6,7 @@
 //  Octree Test - startup scene
 // 
 //
-//  Student Name:   < Your Name goes Here >
+//  Student Name:   < Your Name goes Here >F
 //  Date: <date of last version>
 
 
@@ -31,6 +31,10 @@ void ofApp::setup(){
 		cout << "Particle Texture File: images/Bubble.png not found" << endl;
 		ofExit();
 	}
+	if (!ofLoadImage(deathParticleTex, "images/nova_0.png")) {
+		cout << "Particle Texture File: images/nova_0.png not found" << endl;
+		ofExit();
+}
 	#ifdef TARGET_OPENGLES
 		shader.load("shaders_gles/shader");
 	#else
@@ -60,7 +64,7 @@ void ofApp::setup(){
 	gui.add(gravity.setup("Gravity", 2, 0, 10));
 	gui.add(maxFuel.setup("Max Fuel", 120, 0, 600));
 	gui.add(thrustRate.setup("Thrust Rate", 0.05, 0.01, 1));
-	gui.add(turbScale.setup("Turbulence Scale", 10, 0, 100));
+	gui.add(turbScale.setup("Turbulence Scale", 50, 0, 100));
 	gui.add(headingVectorToggle.setup("Show Heading Vector", false));
 	gui.add(altitudeSensorToggle.setup("Show Altitude Sensor", false));
 	gui.add(boundingBoxToggle.setup("Show Bounding Box", false));
@@ -118,6 +122,7 @@ void ofApp::setup(){
 	spotlight.setSpecularColor(ofFloatColor(1, 1, 1));
 	
 	// Player
+	randomizeSpawnPosition();
 	player = new Player();
 	player->position = spawnPos;
 	player->radius = 1.0;
@@ -125,6 +130,8 @@ void ofApp::setup(){
 	player->isAlive = true;
 	player->gravity = gravity;
 	player->toggleGravity(true);
+	player->maxFuel = maxFuel;
+	player->fuel = player->maxFuel;
 	// Model
 	//player->model.loadModel("geo/lander.obj");
 	//player->model.loadModel("geo/submarine.obj");
@@ -142,7 +149,9 @@ void ofApp::setup(){
 	bounceSfx.load("sfx/fire-earthy.wav");
 	bounceSfx.setMultiPlay(true);
 	victorySfx.load("sfx/hit-mid.wav");
+	victorySfx.setMultiPlay(true);
 	deathSfx.load("sfx/death.wav");
+	deathSfx.setMultiPlay(true);
 
 	// CAMERA
 	//easy cam
@@ -271,7 +280,7 @@ void ofApp::update() {
 		fixed->lookAt(player->position);
 		spotlight.setPosition(player->position);
 		spotlight.lookAt(player->position + player->heading(50));
-		cout << "Rotation: " << player->rotation << endl;
+		//cout << "Rotation: " << player->rotation << endl;
 		
 		// Particle system movement.
 		thrustEmitter->update();
@@ -293,7 +302,7 @@ void ofApp::update() {
 	if (!bgm.isPlaying()) {
 		bgm.play();
 	}
-	if (player->isCollided == true && player->prevCollisionState == false) {
+	if (player->isCollided == true && player->prevCollisionState == false && player->isAlive) {
 		bounceSfx.play();
 	}
 	// Thrust
@@ -435,7 +444,7 @@ void ofApp::draw() {
 			drawShader(&vboThrust, thrustEmitter, &shader, &particleTex, ofColor::aliceBlue);
 		}
 		else if (!player->isAlive) {
-			drawShader(&vboDeath, deathEmitter, &shader, &particleTex, ofColor::lightYellow);
+			drawShader(&vboDeath, deathEmitter, &shader, &deathParticleTex, ofColor::lightSalmon);
 		}
 	}
 	ofPopMatrix();
@@ -510,6 +519,7 @@ void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo* vbo) {
 // Resets the game state.
 //
 void ofApp::reset() {
+	randomizeSpawnPosition();
 	player->reset();
 	player->position = spawnPos;
 	player->bBoxWorldSpace =
@@ -527,6 +537,13 @@ void ofApp::reset() {
 	gameWon = false;
 	thrustEmitter->stop();
 	ofResetElapsedTimeCounter();
+}
+
+// Resets the player starting position.
+void ofApp::randomizeSpawnPosition() {
+	float xSpawn = ofRandom(moon.getSceneMax().x);
+	float zSpawn = ofRandom(moon.getSceneMax().y);
+	spawnPos = glm::vec3(xSpawn, spawnHeight, zSpawn);
 }
 
 // 

@@ -64,7 +64,6 @@ class ofApp : public ofBaseApp{
 		void setup();
 		void update();
 		void draw();
-
 		void drawShader(ofVbo* vbo, ParticleEmitter* emitter, ofShader* shader, ofTexture* particleTex, ofColor color);
 		void loadVbo(ParticleEmitter* emitter, ofVbo* vbo);
 		void reset();
@@ -90,6 +89,7 @@ class ofApp : public ofBaseApp{
 		bool mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point);
 		bool raySelectWithOctree(ofVec3f &pointRet);
 		glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 p , glm::vec3 n);
+		void randomizeSpawnPosition();
 
 		//Cameras
 		ofEasyCam* cam;
@@ -181,6 +181,7 @@ class ofApp : public ofBaseApp{
 		ofxFloatSlider masterVolume = 0.5f;
 		// Shader
 		ofTexture particleTex;
+		ofTexture deathParticleTex;
 		ofShader shader;
 		ofVbo vboThrust, vboDeath;
 		// Values
