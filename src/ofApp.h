@@ -218,8 +218,6 @@ class ofApp : public ofBaseApp{
 		bool bLanderLoaded;
 		bool bTerrainSelected;
 		bool bPaused = true;
-		bool playerLanded = false;
-		bool playerDead = false;
 		// Mouse selection
 		ofVec3f selectedPoint;
 		ofVec3f intersectPoint;

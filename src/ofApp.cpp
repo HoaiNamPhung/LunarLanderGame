@@ -292,11 +292,11 @@ void ofApp::update() {
 		//check player state
 		if (landing->updateCheckLand(player)) {
 			if (landing->currLandDuration >= landing->landDuration) {
-				playerLanded = true;
+				if (player->isLanded = false) {
+					victorySfx.play();
+				}
+				player->isLanded = true;
 			}
-		}
-		if (!player->isAlive) {
-			playerDead = true;
 		}
 	}
 
@@ -323,7 +323,7 @@ void ofApp::update() {
 		thrustSfx.stop();
 	}
 	// Victory
-	if (player->isLanded && !gameWon && player->isAlive && !victorySfx.isPlaying()) {
+	if (player->isLanded && !gameWon && !victorySfx.isPlaying()) {
 		victorySfx.play();
 		gameWon = true;
 	}
@@ -466,13 +466,13 @@ void ofApp::draw() {
 		
 	}
 	string msg = "";
-	if (!player->isAlive) {
+	if (gameLost) {
 		msg = "Crash Landed; optimal landing velocity < " + std::to_string(player->bounceVelocity);
 	}
-	if (playerLanded) {
+	if (gameWon) {
 		msg = "Great Landing!";
 	}
-	if (!player->isAlive || playerLanded) {
+	if (gameLost || gameWon) {
 		ofDrawBitmapStringHighlight(msg, ofGetWindowWidth() / 2 - (msg.length() / 2), 25, ofColor::red);
 		ofDrawBitmapStringHighlight("Press CTRL to play again.", ofGetWindowWidth() / 2 + 10, 50);
 	}
@@ -545,8 +545,6 @@ void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo* vbo) {
 //
 void ofApp::reset() {
 	randomizeSpawnPosition();
-	playerLanded = false;
-	playerDead = false;
 	player->reset();
 	player->position = spawnPos;
 	player->bBoxWorldSpace =
