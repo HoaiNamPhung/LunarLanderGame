@@ -14,6 +14,10 @@ class LandingAreas {
 public:
 	vector<Box> areas;
 	vector<Vector3> points;
+	float landDuration = 5;
+	float currLandDuration = 0;
+	float lastUpdateTime = 0;
+
 	LandingAreas() {
 		float height = 2.5;
 		float width = 2.5;
@@ -44,18 +48,25 @@ public:
 		}
 	}
 
-	bool update(Player* p) {
+	bool updateCheckLand(Player* p) {
 		Vector3 position = Vector3(p->position.x, p->position.y, p->position.z);
 		for (int i = 0; i < areas.size(); i++) {
 			if (areas[i].inside(position)) {
 				if (p->velocity.x < 0.5 && p->velocity.x > -0.5 &&
 					p->velocity.y < 0.5 && p->velocity.y > -0.5 &&
-					p->velocity.z < 0.5 && p->velocity.z > -0.5)
+					p->velocity.z < 0.5 && p->velocity.z > -0.5) {
+					currLandDuration += ofGetElapsedTimef() - lastUpdateTime;
+					lastUpdateTime = ofGetElapsedTimef();
 					return true;
+				}
+					
 			}
 		}
+		currLandDuration = 0;
 		return false;
 	}
+
+
 };
 
 class ofApp : public ofBaseApp{
@@ -206,11 +217,12 @@ class ofApp : public ofBaseApp{
 		bool bLanderLoaded;
 		bool bTerrainSelected;
 		bool bPaused = true;
-
+		bool playerLanded = false;
+		bool playerDead = false;
 		// Mouse selection
 		ofVec3f selectedPoint;
 		ofVec3f intersectPoint;
-
+		bool isLanding;
 		vector<Box> bboxList;
 
 
