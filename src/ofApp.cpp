@@ -142,7 +142,9 @@ void ofApp::setup(){
 	bounceSfx.load("sfx/fire-earthy.wav");
 	bounceSfx.setMultiPlay(true);
 	victorySfx.load("sfx/hit-mid.wav");
+	bounceSfx.setMultiPlay(true);
 	deathSfx.load("sfx/death.wav");
+	bounceSfx.setMultiPlay(true);
 
 	// CAMERA
 	//easy cam
@@ -465,12 +467,15 @@ void ofApp::draw() {
 		
 	}
 	if (!player->isAlive) {
-		ofDrawBitmapStringHighlight("Crashed sub!! Try landing softer.", ofGetWindowWidth() / 2, 25,ofColor::red);
+		ofDrawBitmapStringHighlight("Crash Landed; optimal landing velocity < " + std::to_string(player->bounceVelocity), ofGetWindowWidth() / 2, 25, ofColor::red);
 	
 	}
 	if (playerLanded) {
-		ofDrawBitmapStringHighlight("Good landing, play again.", ofGetWindowWidth() / 2 + 10, 25,ofColor::blue);
+		ofDrawBitmapStringHighlight("Great Landing!", ofGetWindowWidth() / 2 + 10, 25,ofColor::blue);
 		
+	}
+	if (!player->isAlive || playerLanded) {
+		ofDrawBitmapStringHighlight("Press CTRL to play again.", ofGetWindowWidth() / 2 + 10, 25);
 	}
 	else {
 		// Status: Bottom Right
