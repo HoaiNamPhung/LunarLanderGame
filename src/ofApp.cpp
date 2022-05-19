@@ -41,10 +41,10 @@ void ofApp::setup(){
 	initLightingAndMaterials();
 
 	// Load models
-	//moon.loadModel("geo/terrain/terrain_singlemesh_-x_y.dae");
-	//moon.setRotation(0, 90, 1, 0, 0);
+	moon.loadModel("geo/terrain/terrain_singlemesh_-x_y.dae");
+	moon.setRotation(0, 90, 1, 0, 0);
 	//moon.loadModel("geo/terrain/terrain_rotated.dae");
-	moon.loadModel("geo/moon-houdini.obj");
+	//moon.loadModel("geo/moon-houdini.obj");
 	for (int i = 0; i < moon.getMeshNames().size(); i++) {
 		cout << moon.getMeshNames()[i] << endl;
 	}
