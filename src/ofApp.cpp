@@ -53,7 +53,7 @@ void ofApp::setup(){
 	// GUI Sliders
 	gui.setup();
 	gui.add(numLevels.setup("Number of Octree Levels", 1, 1, 10));
-	gui.add(scale.setup("Player Scale", 1, 1, 10));
+	gui.add(scale.setup("Player Scale", 0.7, 1, 10));
 	gui.add(thrust.setup("Player Thrust", 5, 1, 50));
 	gui.add(torque.setup("Player Torque", 50, 1, 300));
 	gui.add(restitution.setup("Player Restitution", 1, 1, 10));
@@ -192,6 +192,8 @@ void ofApp::setup(){
 	cout << "Tree creation time: " << ofGetElapsedTimeMillis() << " ms" << endl;
 	cout << "Number of Verts: " << moon.getMesh(0).getNumVertices() << endl;
 	testBox = Box(Vector3(3, 3, 0), Vector3(5, 5, 2));
+
+	landing = new LandingAreas();
 }
  
 //--------------------------------------------------------------
@@ -209,6 +211,9 @@ void ofApp::update() {
 	player->showHeadingVector = headingVectorToggle;
 	player->showAltitudeSensor = altitudeSensorToggle;
 	player->requireFuel = requireFuelToggle;
+
+	if(landing->update(player))
+		reset();
 	thrustEmitter->setRate(thrustRate);
 
 	keyLight.setAreaLight(1, 1);
@@ -248,12 +253,13 @@ void ofApp::update() {
 		}
 		//camera tracking
 		playerCam->setPosition(player->position.x - 10, player->position.y + 10, player->position.z);
-		playerCam->rotateAroundDeg(player->rotation.y + 90, glm::vec3(0,-1,0), player->position);
+		playerCam->rotateAroundDeg(player->rotation.y + 90, glm::vec3(0,1,0), player->position);
 		playerCam->lookAt(player->position);
 		fixed->lookAt(player->position);
 		spotlight.setPosition(player->position);
+		spotlight.lookAt(player->position + player->heading(50));
 		cout << "Rotation: " << player->rotation << endl;
-		spotlight.rotateAroundDeg(player->rotation.y + 90, glm::vec3(0, 1, 0), player->position);
+		
 		// Particle system movement.
 		thrustEmitter->update();
 		deathEmitter->update();
@@ -372,6 +378,7 @@ void ofApp::draw() {
 			// Draw directional vectors.
 			player->drawHeadingVector();
 			player->drawAltitudeSensor();
+			landing->draw();
 			if (boundingBoxToggle) {
 				player->drawBoundingBox();
 			}

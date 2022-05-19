@@ -9,6 +9,55 @@
 #include "Camera.h"
 #include "Player.h"
 
+
+class LandingAreas {
+public:
+	vector<Box> areas;
+	vector<Vector3> points;
+	LandingAreas() {
+		float height = 2.5;
+		float width = 2.5;
+		//first area
+		Vector3 point1 = Vector3(-1, 0, -1);
+		Vector3 min1 = Vector3(point1.x() - width / 2, point1.y() - height / 2, point1.z() - width / 2);
+		Vector3 max1 = Vector3(point1.x() + width / 2, point1.y() + height / 2, point1.z() + width / 2);
+		Box box1 = Box(min1, max1);
+		areas.push_back(box1);
+		//second area
+		Vector3 point2 = Vector3(10, 0, 8);
+		Vector3 min2 = Vector3(point2.x() - width / 2, point2.y() - height / 2, point2.z() - width / 2);
+		Vector3 max2 = Vector3(point2.x() + width / 2, point2.y() + height / 2, point2.z() + width / 2);
+		Box box2 = Box(min2, max2);
+		areas.push_back(box2);
+		//second area
+		Vector3 point3 = Vector3(-11, 9, 5);
+		Vector3 min3 = Vector3(point3.x() - width / 2, point3.y() - height / 2, point3.z() - width / 2);
+		Vector3 max3 = Vector3(point3.x() + width / 2, point3.y() + height / 2, point3.z() + width / 2);
+		Box box3 = Box(min3, max3);
+		areas.push_back(box3);
+	}	
+	void draw() {
+		for (int i = 0; i < areas.size(); i++) {
+			ofNoFill();
+			ofSetColor(ofColor::white);
+			Octree::drawBox(areas[i]);
+		}
+	}
+
+	bool update(Player* p) {
+		Vector3 position = Vector3(p->position.x, p->position.y, p->position.z);
+		for (int i = 0; i < areas.size(); i++) {
+			if (areas[i].inside(position)) {
+				if (p->velocity.x < 0.5 && p->velocity.x > -0.5 &&
+					p->velocity.y < 0.5 && p->velocity.y > -0.5 &&
+					p->velocity.z < 0.5 && p->velocity.z > -0.5)
+					return true;
+			}
+		}
+		return false;
+	}
+};
+
 class ofApp : public ofBaseApp{
 
 	public:
@@ -158,6 +207,10 @@ class ofApp : public ofBaseApp{
 		ofVec3f intersectPoint;
 
 		vector<Box> bboxList;
+
+
+		//LandingAreas
+		LandingAreas* landing;
 
 		const float selectionRange = 4.0;
 };
