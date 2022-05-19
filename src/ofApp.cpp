@@ -212,8 +212,7 @@ void ofApp::update() {
 	player->showAltitudeSensor = altitudeSensorToggle;
 	player->requireFuel = requireFuelToggle;
 
-	if(landing->update(player))
-		reset();
+	
 	thrustEmitter->setRate(thrustRate);
 
 	keyLight.setAreaLight(1, 1);
@@ -267,10 +266,25 @@ void ofApp::update() {
 		thrustEmitter->setPosition(player->getBottomCenter());
 		deathEmitter->setPosition(player->getCenter());
 		thrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, (float) thrustEmitterVelocityScale, player->velocity.z));
+
+		//check player state
+		if (landing->updateCheckLand(player)) {
+			if (landing->currLandDuration >= landing->landDuration) {
+				playerLanded = true;
+			}
+			bPaused = !bPaused;
+
+		}
+		if (!player->isAlive) {
+			playerDead = true;
+			bPaused = !bPaused;
+		}
 	}
 }
 //--------------------------------------------------------------
 void ofApp::draw() {
+
+
 
 	// Preload shader buffer.
 	loadVbo(deathEmitter, &vboDeath);
@@ -282,6 +296,7 @@ void ofApp::draw() {
 	background.draw(ofGetWindowRect());
 	glDepthMask(GL_TRUE);
 
+	
 	chooseCamera->begin();
 	ofPushMatrix();
 	ofEnableLighting();
@@ -309,6 +324,7 @@ void ofApp::draw() {
 		ofMesh mesh;
 		if (bLanderLoaded) {
 			ofPushMatrix();
+			
 			ofMultMatrix(player->getMatrix());
 			player->model.drawFaces();
 			if (!bTerrainSelected) drawAxis(player->model.getPosition());
@@ -395,10 +411,20 @@ void ofApp::draw() {
 	ofPopMatrix();
 	chooseCamera->end();
 	
-
+	
+	
 	// Draw HUD
 	if (bPaused) {
 		ofDrawBitmapStringHighlight("Paused.", ofGetWindowWidth() - 100, ofGetWindowHeight() - 25);
+		
+	}
+	if (!player->isAlive) {
+		ofDrawBitmapStringHighlight("Crashed sub!! Try landing softer.", ofGetWindowWidth() / 2, 25,ofColor::red);
+	
+	}
+	if (playerLanded) {
+		ofDrawBitmapStringHighlight("Good landing, play again.", ofGetWindowWidth() / 2 + 10, 25,ofColor::blue);
+		
 	}
 	else {
 		// Status: Bottom Right
@@ -423,6 +449,8 @@ void ofApp::draw() {
 	glDepthMask(false);
 	if (!bHide) gui.draw();
 	glDepthMask(true);
+
+
 }
 
 // Draw shader.
@@ -464,6 +492,8 @@ void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo* vbo) {
 // Resets the game state.
 //
 void ofApp::reset() {
+	playerLanded = false;
+	playerDead = false;
 	player->reset();
 	player->position = spawnPos;
 	player->radius = 1.0;
