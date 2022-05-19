@@ -37,6 +37,7 @@ public:
 	bool isThrustingUpward = false;
 	bool isAlive = false;
 	bool isLanded = false;
+	bool prevCollisionState = false;
 	bool isCollided = false;
 	// Toggles
 	bool requireFuel = false;
