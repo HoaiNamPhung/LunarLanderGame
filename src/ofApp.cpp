@@ -41,10 +41,10 @@ void ofApp::setup(){
 	initLightingAndMaterials();
 
 	// Load models
-	moon.loadModel("geo/terrain/terrain_singlemesh_-x_y.dae");
-	moon.setRotation(0, 90, 1, 0, 0);
+	//moon.loadModel("geo/terrain/terrain_singlemesh_-x_y.dae");
+	//moon.setRotation(0, 90, 1, 0, 0);
 	//moon.loadModel("geo/terrain/terrain_rotated.dae");
-	//moon.loadModel("geo/moon-houdini.obj");
+	moon.loadModel("geo/moon-houdini.obj");
 	for (int i = 0; i < moon.getMeshNames().size(); i++) {
 		cout << moon.getMeshNames()[i] << endl;
 	}
@@ -67,6 +67,9 @@ void ofApp::setup(){
 	gui.add(requireFuelToggle.setup("Use Fuel for Thrusters", true));
 	gui.add(positionSlider.setup("Position", glm::vec3(0, 0, 0), glm::vec3(-1000, -1000, -1000), glm::vec3(1000, 1000, 1000)));
 	gui.add(velocitySlider.setup("Velocity", glm::vec3(0, 0, 0), glm::vec3(-100, -100, -100), glm::vec3(100, 100, 100)));
+	gui.add(masterVolume.setup("Master Volume", 0.5, 0, 1));
+	gui.add(bgmVolume.setup("BGM Volume", 0.5, 0, 1));
+	gui.add(sfxVolume.setup("SFX Volume", 0.5, 0, 1));
 	bHide = false;
 
 	//Light System
@@ -130,6 +133,16 @@ void ofApp::setup(){
 	player->model.setScaleNormalization(false);
 	player->model.setPosition(0, 0, 0);
 	bboxList.clear();
+
+	// SOUND
+	bgm.load("sfx/deep-blue-bgm.mp3");
+	bgm.setLoop(true);
+	thrustSfx.load("sfx/bubblestream.mp3");
+	thrustSfx.setLoop(true);
+	bounceSfx.load("sfx/fire-earthy.wav");
+	bounceSfx.setMultiPlay(true);
+	victorySfx.load("sfx/hit-mid.wav");
+	deathSfx.load("sfx/death.wav");
 
 	// CAMERA
 	//easy cam
@@ -267,6 +280,39 @@ void ofApp::update() {
 		thrustEmitter->setPosition(player->getBottomCenter());
 		deathEmitter->setPosition(player->getCenter());
 		thrustEmitter->setVelocity(-1 * glm::vec3(player->velocity.x, (float) thrustEmitterVelocityScale, player->velocity.z));
+	}
+
+	// SOUND
+	// Volume
+	bounceSfx.setVolume(sfxVolume * masterVolume);
+	deathSfx.setVolume(sfxVolume * masterVolume);
+	victorySfx.setVolume(sfxVolume * masterVolume);
+	thrustSfx.setVolume(sfxVolume * masterVolume);
+	bgm.setVolume(bgmVolume * masterVolume);
+	// Collision
+	if (!bgm.isPlaying()) {
+		bgm.play();
+	}
+	if (player->isCollided == true && player->prevCollisionState == false) {
+		bounceSfx.play();
+	}
+	// Thrust
+	bool isThrusting = player->isThrustingUpward || (player->aDir != ms::accelDir::NONE);
+	if (isThrusting && !thrustSfx.isPlaying() && player->isAlive) {
+		thrustSfx.play();
+	}
+	else if (!isThrusting && thrustSfx.isPlaying() && player->isAlive) {
+		thrustSfx.stop();
+	}
+	// Victory
+	if (player->isLanded && !gameWon && player->isAlive && !victorySfx.isPlaying()) {
+		victorySfx.play();
+		gameWon = true;
+	}
+	// Death
+	if (!player->isAlive && !gameLost && !deathSfx.isPlaying()) {
+		deathSfx.play();
+		gameLost = true;
 	}
 }
 //--------------------------------------------------------------
@@ -466,6 +512,9 @@ void ofApp::loadVbo(ParticleEmitter* emitter, ofVbo* vbo) {
 void ofApp::reset() {
 	player->reset();
 	player->position = spawnPos;
+	player->bBoxWorldSpace =
+		Box(Vector3(player->bBox.min().x() + player->position.x, player->bBox.min().y() + player->position.y, player->bBox.min().z() + player->position.z),
+			Vector3(player->bBox.max().x() + player->position.x, player->bBox.max().y() + player->position.y, player->bBox.max().z() + player->position.z)); 
 	player->radius = 1.0;
 	player->lifespan = 100000;
 	player->model.setPosition(0, 0, 0);
@@ -474,6 +523,8 @@ void ofApp::reset() {
 	player->requireFuel = true;
 	player->fuel = maxFuel;
 	player->isAlive = true;
+	gameLost = false;
+	gameWon = false;
 	thrustEmitter->stop();
 	ofResetElapsedTimeCounter();
 }
@@ -560,8 +611,8 @@ void ofApp::keyPressed(int key) {
 		break;
 	case '9':
 	case OF_KEY_F9:
-		player->showAltitudeSensor = !player->showAltitudeSensor;
-		player->showHeadingVector = !player->showHeadingVector;
+		altitudeSensorToggle = !altitudeSensorToggle;
+		headingVectorToggle = !headingVectorToggle;
 		boundingBoxToggle = !boundingBoxToggle;
 		break;
 	case OF_KEY_ALT:

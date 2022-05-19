@@ -62,7 +62,6 @@ void Player::move(Octree* oct, ParticleEmitter* deathEmitter) {
 	integrate();
 	removeSideSlipping();
 	removeResidualRotation();
-	//model.setRotation(1, rotation.y, 0, 1, 0);
 	collide(oct, deathEmitter);
 	updateBoundingBox();
 	lastUpdateTime = ofGetElapsedTimef();
@@ -185,7 +184,6 @@ void Player::toggleGravity(bool gravityOn) {
 }
 
 void Player::reset() {
-	bBoxWorldSpace = bBox;
 	// Values
 	maxFuel = 0;
 	fuel = maxFuel;
@@ -283,6 +281,7 @@ bool Player::getBottomCollisionPoint(Octree* oct, glm::vec3& ptRtn) {
 }
 
 int Player::collide(Octree* oct, ParticleEmitter* deathEmitter) {
+	prevCollisionState = isCollided;
 	// Get point of collision with terrain on model underside.
 	glm::vec3 collisionPt;
 	isCollided = getBottomCollisionPoint(oct, collisionPt);
@@ -297,6 +296,7 @@ int Player::collide(Octree* oct, ParticleEmitter* deathEmitter) {
 	// Reaction based on fall velocity.
 	// Selfdestruct
 	if (velocity.y < deathVelocity) {
+		cout << "Selfdestruct" << endl;
 		destroy(deathEmitter);
 		return 2;
 	}
@@ -304,19 +304,22 @@ int Player::collide(Octree* oct, ParticleEmitter* deathEmitter) {
 	else if (velocity.y < bounceVelocity) {
 		glm::vec3 normal = getBounceNormal(collisionPt);
 		glm::vec3 bounce = (restitution + 1.0) * ((glm::dot(-velocity, normal)) * normal);
-		ImpulseForce* bounceForce = new ImpulseForce(glm::length(bounce), glm::normalize(bounce));
+		cout << "Bounce: " << bounce << endl;
+		ImpulseForce* bounceForce = new ImpulseForce(glm::length(bounce), glm::vec3(0, 1, 0));
 		addForce(bounceForce);
 		velocity.y = 0.01f; // Prevent stop from activating (@ vel < 0)
+		if (acceleration.y < 0) {
+			acceleration.y = 0;
+		}
 		return 1;
 	}
 	// Stop
 	else if (velocity.y < 0) {
-		/*
+		cout << "Landing Velocity: " << velocity.y << " | Position: " << collisionPt.y << endl;
 		velocity.y = 0;
 		if (acceleration.y < 0) {
 			acceleration.y = 0;
 		}
-		*/
 		return 0;
 	}
 	// Side-based collision or unexpected.

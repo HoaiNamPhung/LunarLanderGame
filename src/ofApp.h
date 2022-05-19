@@ -176,11 +176,16 @@ class ofApp : public ofBaseApp{
 		ofSoundPlayer deathSfx;
 		ofSoundPlayer bounceSfx;
 		ofSoundPlayer victorySfx;
+		ofxFloatSlider bgmVolume = 0.5f;
+		ofxFloatSlider sfxVolume = 0.5f;
+		ofxFloatSlider masterVolume = 0.5f;
 		// Shader
 		ofTexture particleTex;
 		ofShader shader;
 		ofVbo vboThrust, vboDeath;
 		// Values
+		bool gameWon = false;
+		bool gameLost = false;
 		float spawnHeight = 30;
 		glm::vec3 spawnPos = glm::vec3(0, spawnHeight, 0);
 		float altitude = 0;
